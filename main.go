@@ -9,29 +9,17 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/AnuAnsh17/nyx-hackathon/api"
+	"github.com/AnuAnsh17/nyx-hackathon/chain"
 )
 
-// Commit 1 scaffold: server boots, every contract route is registered
-// and returns 501 Not Implemented. Real handlers land in Commit 4
-// (POST /event, GET /chain), Commit 5 (GET /verify), and Commit 6
-// (POST /tamper, GET /events). SIGINT / SIGTERM trigger graceful
-// shutdown with a 5-second drain window.
 func main() {
-	mux := http.NewServeMux()
+	c := chain.New()
+	h := api.NewHandler(c)
 
-	notImpl := func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "not implemented", http.StatusNotImplemented)
-	}
-	for _, route := range []string{
-		"/event",
-		"/chain",
-		"/verify",
-		"/tamper",
-		"/events",
-		"/healthz",
-	} {
-		mux.HandleFunc(route, notImpl)
-	}
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux, h)
 
 	srv := &http.Server{
 		Addr:              ":8080",
