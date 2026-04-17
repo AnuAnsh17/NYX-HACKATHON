@@ -1,0 +1,24 @@
+# Go build artifacts
+*.exe
+*.test
+*.out
+/nyx-hackathon
+/NYX-HACKATHON
+
+# Test / coverage
+coverage.txt
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
