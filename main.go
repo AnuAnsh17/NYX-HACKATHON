@@ -16,7 +16,8 @@ import (
 
 func main() {
 	c := chain.New()
-	h := api.NewHandler(c)
+	b := api.NewBroadcaster()
+	h := api.NewHandler(c, b)
 
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux, h)

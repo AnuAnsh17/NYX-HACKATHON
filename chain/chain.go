@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -53,4 +54,15 @@ func (c *Chain) GetChain() []Block {
 	out := make([]Block, len(c.blocks))
 	copy(out, c.blocks)
 	return out
+}
+
+func (c *Chain) Tamper(index int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if index < 0 || index >= len(c.blocks) {
+		return fmt.Errorf("index %d out of range [0,%d)", index, len(c.blocks))
+	}
+	c.blocks[index].Data = "TAMPERED"
+	return nil
 }

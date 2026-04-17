@@ -19,11 +19,13 @@ func Verify(blocks []chain.Block) VerifyResult {
 		Valid:  true,
 		Blocks: make([]BlockStatus, 0, len(blocks)),
 	}
+	chainBroken := false
 	for _, b := range blocks {
 		expected := chain.Hash(b)
 		status := "VALID"
-		if expected != b.Hash {
+		if chainBroken || expected != b.Hash {
 			status = "BROKEN"
+			chainBroken = true
 			result.Valid = false
 		}
 		result.Blocks = append(result.Blocks, BlockStatus{
