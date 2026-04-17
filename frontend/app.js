@@ -43,6 +43,7 @@ function appendCard(block) {
     if (cardFor.has(block.index)) return;
     const card = document.createElement("div");
     card.className = "block-card valid";
+    card.dataset.index = String(block.index);
     card.innerHTML = `
         <div class="block-head">
             <span class="block-index">#${block.index}</span>
@@ -94,7 +95,7 @@ function updateIntegrityBadge(valid) {
     integrityBadge.classList.remove("badge-valid", "badge-broken", "badge-unknown");
     if (valid === true) {
         integrityBadge.classList.add("badge-valid");
-        integrityBadge.textContent = "VALID";
+        integrityBadge.textContent = "CHAIN VALID";
     } else if (valid === false) {
         integrityBadge.classList.add("badge-broken");
         integrityBadge.textContent = "CHAIN BROKEN";
@@ -119,16 +120,42 @@ async function verify() {
 
 async function tamperBlock(index) {
     try {
-        const res = await fetch("/tamper", {
+        const tr = await fetch("/tamper", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ index })
         });
+        if (!tr.ok) throw new Error("HTTP " + tr.status);
+
+        const res = await fetch("/verify");
         if (!res.ok) throw new Error("HTTP " + res.status);
-        await verify();
+        const data = await res.json();
+
+        updateIntegrityBadge(data.valid);
+        lastVerifiedEl.textContent = new Date().toLocaleTimeString();
+
+        const brokenBlocks = data.blocks.filter(b => b.status === "BROKEN");
+        for (let i = 0; i < brokenBlocks.length; i++) {
+            await delay(150);
+            setCardStatus(brokenBlocks[i].index, "BROKEN");
+        }
     } catch (e) {
         setAppendStatus("tamper failed: " + e.message, "err");
     }
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function setCardStatus(index, status) {
+    const entry = cardFor.get(index);
+    if (!entry) return;
+    const card = entry.card;
+    card.classList.remove("valid", "broken", "pending");
+    card.classList.add(status.toLowerCase());
+    const pill = card.querySelector(".block-status");
+    if (pill) pill.textContent = status;
 }
 
 async function appendEvent() {
