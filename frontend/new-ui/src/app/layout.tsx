@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Navbar } from "@/components/layout/Navbar";
 
 const archivo = Archivo({
   subsets: ["latin"],
@@ -40,7 +41,8 @@ export default function RootLayout({
       className={`${archivo.variable} ${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="bg-nyx-black text-nyx-text antialiased font-body min-h-full flex flex-col">
-        {children}
+        <Navbar />
+        <div className="pt-14 flex flex-col flex-1">{children}</div>
       </body>
     </html>
   );
