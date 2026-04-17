@@ -57,6 +57,25 @@ func (c *Chain) GetChain() []Block {
 	return out
 }
 
+func (c *Chain) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	const (
+		genesisData     = "GENESIS"
+		genesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"
+	)
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+	genesis := Block{
+		Index:     0,
+		Data:      genesisData,
+		Timestamp: timestamp,
+		PrevHash:  genesisPrevHash,
+		Hash:      computeHash(0, genesisData, genesisPrevHash, timestamp),
+	}
+	c.blocks = []Block{genesis}
+}
+
 func (c *Chain) Tamper(index int) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()

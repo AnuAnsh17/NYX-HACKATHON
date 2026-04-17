@@ -54,6 +54,32 @@ func TestChainLinkage(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	c := chain.New()
+	c.Append("one")
+	c.Append("two")
+
+	c.Reset()
+	blocks := c.GetChain()
+
+	if len(blocks) != 1 {
+		t.Fatalf("chain length = %d, want 1", len(blocks))
+	}
+	g := blocks[0]
+	if g.Index != 0 {
+		t.Errorf("genesis index = %d, want 0", g.Index)
+	}
+	if g.PrevHash != strings.Repeat("0", 64) {
+		t.Errorf("genesis prev_hash = %q, want 64 zeros", g.PrevHash)
+	}
+	if g.Data != "GENESIS" {
+		t.Errorf("genesis data = %q, want %q", g.Data, "GENESIS")
+	}
+	if expected := chain.Hash(g); g.Hash != expected {
+		t.Errorf("genesis hash = %q, want %q", g.Hash, expected)
+	}
+}
+
 func TestTamperCascade(t *testing.T) {
 	c := chain.New()
 	for i := 0; i < 5; i++ {

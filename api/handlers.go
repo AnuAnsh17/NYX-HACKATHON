@@ -54,6 +54,18 @@ func (h *Handler) GetChain(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.chain.GetChain())
 }
 
+func (h *Handler) PostReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	h.chain.Reset()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":       "reset",
+		"chain_length": 1,
+	})
+}
+
 func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
