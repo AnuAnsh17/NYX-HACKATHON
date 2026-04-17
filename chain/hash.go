@@ -11,3 +11,7 @@ func computeHash(index int, data, prevHash, timestamp string) string {
 	h := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(h[:])
 }
+
+func Hash(b Block) string {
+	return computeHash(b.Index, b.Data, b.PrevHash, b.Timestamp)
+}

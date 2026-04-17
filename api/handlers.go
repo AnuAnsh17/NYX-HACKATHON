@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/AnuAnsh17/nyx-hackathon/chain"
+	"github.com/AnuAnsh17/nyx-hackathon/verifier"
 )
 
 type Handler struct {
@@ -51,7 +52,11 @@ func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetVerify(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "verify lands in commit 5")
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, verifier.Verify(h.chain.GetChain()))
 }
 
 func (h *Handler) PostTamper(w http.ResponseWriter, r *http.Request) {
