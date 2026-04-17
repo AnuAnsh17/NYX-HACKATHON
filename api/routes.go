@@ -11,7 +11,8 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/events", withCORS(h.GetEvents))
 	mux.HandleFunc("/healthz", withCORS(h.Healthz))
 
-	mux.Handle("/", http.FileServer(http.Dir("frontend")))
+	mux.Handle("/legacy/", http.StripPrefix("/legacy", http.FileServer(http.Dir("frontend"))))
+	mux.Handle("/", http.FileServer(http.Dir("frontend/dashboard")))
 }
 
 func withCORS(next http.HandlerFunc) http.HandlerFunc {

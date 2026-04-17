@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCL // Deep Compliance Layer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-main">DCL // DEEP COMPLIANCE LAYER</div>
+            <div class="brand-sub">NBFC COMPLIANCE GRID / INSTANCE 01</div>
+        </div>
+        <nav class="breadcrumb" aria-label="Breadcrumb">overview &gt; integrity</nav>
+        <div class="top-meta">
+            <span id="systemDot" class="status-dot good"></span>
+            <span id="verifiedAt" class="verified-at">VERIFIED --:--:-- UTC</span>
+            <div class="user-pill"><span class="avatar">AY</span><span>compliance.officer</span></div>
+        </div>
+    </header>
+
+    <aside class="sidebar">
+        <section>
+            <div class="side-label">WORKSPACE</div>
+            <a class="nav-item active" href="#overview"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8"/></svg><span>Overview</span><kbd>1</kbd></a>
+            <a class="nav-item" href="#evidence"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10"/></svg><span>Evidence</span><kbd>2</kbd></a>
+            <a class="nav-item" href="#integrity"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="6" height="12"/></svg><span>Integrity Monitor</span><kbd>3</kbd></a>
+            <a class="nav-item" href="#audit"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="5" width="12" height="6"/></svg><span>Audit Stream</span><kbd>4</kbd></a>
+            <a class="nav-item" href="#reports"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="10" height="12"/></svg><span>Reports</span><kbd>5</kbd></a>
+            <a class="nav-item" href="#settings"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8"/></svg><span>Settings</span><kbd>,</kbd></a>
+        </section>
+        <section class="side-system">
+            <div class="side-label">SYSTEM</div>
+            <div class="side-stat"><span>Chain length</span><strong id="sideChain">247 blocks</strong></div>
+            <div class="side-stat"><span>Uptime</span><strong id="sideUptime">0h 00m</strong></div>
+            <div class="side-stat"><span>Last seal</span><strong id="sideSeal">2s ago</strong></div>
+            <div class="side-actions">
+                <button id="sealBtn" class="ghost-btn">SEAL TEST</button>
+                <button id="tamperBtn" class="ghost-btn">TAMPER LAST</button>
+            </div>
+        </section>
+    </aside>
+
+    <main id="overview" class="main-grid">
+        <section class="panel hero-panel">
+            <div class="panel-tag">SYSTEM INTEGRITY</div>
+            <h1 id="heroTitle" class="hero-status good">● SYSTEM VERIFIED</h1>
+            <p id="heroSubtitle" class="hero-subtitle">All 247 blocks cryptographically sealed</p>
+            <div class="hero-stats">
+                <span>INTEGRITY <strong id="integrityScore">100%</strong></span>
+                <span>EVIDENCE <strong id="evidenceSignal">HIGH</strong></span>
+                <span>AUDIT <strong id="auditSignal">RELIABLE</strong></span>
+            </div>
+            <div id="lastVerified" class="tiny-meta">LAST VERIFIED 2S AGO</div>
+        </section>
+
+        <section class="metric-stack">
+            <div class="metric-card"><span>Blocks sealed</span><strong id="metricBlocks">247</strong></div>
+            <div class="metric-card"><span>Events/sec</span><strong id="metricRate">1.2</strong></div>
+            <div class="metric-card"><span>Chain depth</span><strong>64 bytes</strong></div>
+            <div class="metric-card"><span>Verify latency</span><strong id="metricLatency">3.4ms</strong></div>
+        </section>
+
+        <section id="integrity" class="panel monitor-panel">
+            <div class="panel-head"><h2 id="monitorTitle">INTEGRITY MONITOR</h2><span id="monitorCount" class="panel-meta">LAST 12 BLOCKS</span></div>
+            <div id="chainPreview" class="chain-preview" role="list"></div>
+        </section>
+
+        <section class="panel compliance-panel">
+            <div class="panel-head"><h2 id="complianceTitle">COMPLIANCE SIGNAL</h2></div>
+            <div id="complianceRows" class="compliance-rows"></div>
+            <div id="lastAudit" class="panel-footer">Last full audit: --:--:-- UTC</div>
+        </section>
+
+        <section id="audit" class="panel audit-panel">
+            <div class="panel-head"><h2 id="auditTitle">AUDIT STREAM</h2><span id="streamState" class="panel-meta">LIVE SSE</span></div>
+            <div id="auditStream" class="audit-stream" aria-live="polite"></div>
+        </section>
+
+        <section id="evidence" class="panel evidence-panel">
+            <div class="panel-head">
+                <h2 id="evidenceTitle">EVIDENCE TABLE</h2>
+                <input id="searchBox" class="search" type="search" placeholder="Search hash, event, index" aria-label="Search evidence">
+            </div>
+            <div class="table-wrap">
+                <table class="evidence-table">
+                    <colgroup>
+                        <col class="c-index"><col class="c-type"><col class="c-time"><col class="c-hash"><col class="c-prev"><col class="c-status"><col class="c-actions">
+                    </colgroup>
+                    <thead><tr><th>INDEX</th><th>EVENT TYPE</th><th>TIMESTAMP</th><th>HASH</th><th>PREV_HASH</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                    <tbody id="evidenceBody"></tbody>
+                </table>
+            </div>
+            <footer class="table-footer"><span id="showingRows">Showing 1-50 of 247</span><div class="pager"><button id="prevPage" class="ghost-btn">PREV</button><span id="pageLabel">1</span><button id="nextPage" class="ghost-btn">NEXT</button></div></footer>
+        </section>
+    </main>
+
+    <aside id="drawer" class="drawer" aria-hidden="true">
+        <header class="drawer-head"><h2 id="drawerTitle">EVIDENCE JSON</h2><button id="drawerClose" class="ghost-btn">CLOSE</button></header>
+        <pre id="drawerJson"></pre>
+    </aside>
+
+    <script>
+    const API=location.origin==="http://localhost:8080"?"":"http://localhost:8080",Q=id=>document.getElementById(id),E={dot:Q("systemDot"),ver:Q("verifiedAt"),hero:Q("heroTitle"),sub:Q("heroSubtitle"),score:Q("integrityScore"),ev:Q("evidenceSignal"),aud:Q("auditSignal"),lv:Q("lastVerified"),side:Q("sideChain"),up:Q("sideUptime"),seal:Q("sideSeal"),blocks:Q("metricBlocks"),rate:Q("metricRate"),lat:Q("metricLatency"),prev:Q("chainPreview"),comp:Q("complianceRows"),lastAudit:Q("lastAudit"),stream:Q("auditStream"),sse:Q("streamState"),body:Q("evidenceBody"),search:Q("searchBox"),show:Q("showingRows"),page:Q("pageLabel"),pgPrev:Q("prevPage"),pgNext:Q("nextPage"),drawer:Q("drawer"),json:Q("drawerJson"),close:Q("drawerClose"),sealBtn:Q("sealBtn"),tamperBtn:Q("tamperBtn")},S={b:[],st:new Map,valid:true,page:1,size:50,boot:Date.now(),lastSeal:null,logs:[],pause:false,latency:3.4,lastV:null,events:[]},CL=["DPDP Act 2023","BSA 2023","SEBI Audit Trail","Integrity Proof"],P=(n,l=2)=>String(n).padStart(l,"0"),X=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),HH=h=>h?h.slice(0,8):"--------",ET=b=>String(b.data||"EVENT").split(":")[0].slice(0,18).toUpperCase(),EN=b=>String(b.data||"GENESIS").split(":").slice(1).join(":")||String(b.data||"GENESIS").toLowerCase(),UTC=(d=new Date)=>`${P(d.getUTCHours())}:${P(d.getUTCMinutes())}:${P(d.getUTCSeconds())} UTC`,TS=v=>{let d=new Date(v);return isNaN(d)?"--:--:--.---":`${P(d.getUTCHours())}:${P(d.getUTCMinutes())}:${P(d.getUTCSeconds())}.${P(d.getUTCMilliseconds(),3)}`},AGO=v=>{let s=Math.max(0,((Date.now()-new Date(v).getTime())/1000)|0);return s<60?`${s}s ago`:`${(s/60)|0}m ago`},GET=async(p,o)=>{let r=await fetch(API+p,Object.assign({cache:"no-store"},o));if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json()},ST=i=>S.st.get(i)||"VALID";
+    function FH(seed){let o="";for(let i=0;i<64;i++)o+=((seed*31+i*17)%16).toString(16);return o}
+    function mock(){let t=["loan_disbursed","kyc_updated","risk_score","mandate_signed","account_linked","limit_changed"],now=Date.now(),prev="0".repeat(64);return Array.from({length:247},(_,i)=>{let hash=FH(i+7),b={index:i,data:i?`SEAL:${t[i%t.length]}`:"GENESIS",timestamp:new Date(now-(246-i)*1200).toISOString(),prev_hash:prev,hash};prev=hash;return b})}
+    function seed(){S.logs=S.b.slice(-30).reverse().map(b=>({text:`${TS(b.timestamp)}  SEAL   ${HH(b.hash)}  block #${b.index}  ${EN(b)}`,level:ST(b.index)==="BROKEN"?"bad":""}));S.logs.unshift({text:`${TS(new Date)}  VERIFY -----     chain integrity OK`,level:"ok"})}
+    function loadMock(){S.b=mock();S.lastSeal=S.b.at(-1).timestamp;S.st=new Map(S.b.map(b=>[b.index,"VALID"]));seed();render()}
+    function tick(){let up=Date.now()-S.boot,m=(up/60000)|0,h=(m/60)|0;E.up.textContent=`${h}h ${P(m%60)}m`;E.seal.textContent=S.lastSeal?AGO(S.lastSeal):"never";E.lv.textContent=`LAST VERIFIED ${S.lastV?AGO(S.lastV).toUpperCase():"PENDING"}`;let n=S.events.filter(t=>Date.now()-t<10000).length/10;E.rate.textContent=n?n.toFixed(1):"1.2"}
+    function render(){topbar();hero();metrics();preview();comp();table();audit();tick()}
+    function topbar(){let t=S.lastV||new Date;E.dot.className="status-dot "+(S.valid?"good":"bad");E.ver.textContent=(S.valid?"VERIFIED ":"COMPROMISED ")+UTC(t)}
+    function hero(){let n=S.b.length,bad=!S.valid;E.hero.className="hero-status "+(bad?"bad":"good");E.hero.textContent=bad?"● SYSTEM COMPROMISED":"● SYSTEM VERIFIED";E.sub.textContent=bad?`${n} blocks require incident review`:`All ${n} blocks cryptographically sealed`;E.score.textContent=bad?"FAILED":"100%";E.ev.textContent=bad?"AT RISK":"HIGH";E.aud.textContent=bad?"FAILED":"RELIABLE"}
+    function metrics(){let n=S.b.length;E.blocks.textContent=n;E.side.textContent=`${n} blocks`;E.lat.textContent=`${Number(S.latency).toFixed(1)}ms`}
+    function preview(){E.prev.innerHTML=S.b.slice(-12).map(b=>`<button class="chain-block" data-index="${b.index}" role="listitem"><span>#${b.index}</span><code>${HH(b.hash)}</code><i class="${ST(b.index)==="BROKEN"?"bad":"good"}"></i></button>`).join("")}
+    function comp(){E.comp.innerHTML=CL.map((l,i)=>{let ok=S.valid,w=ok?i===3?"VERIFIED":"COMPLIANT":i===3?"FAILED":"NONCOMPLIANT";return`<div class="compliance-row"><span>${l}</span><strong class="status-pill ${ok?"good":"bad"}"><i></i>${w}</strong></div>`}).join("");E.lastAudit.textContent=`Last full audit: ${UTC(new Date(Date.now()-240000))}`}
+    function rows(){let q=E.search.value.trim().toLowerCase(),r=[...S.b].reverse();return q?r.filter(b=>[b.index,ET(b),b.timestamp,b.hash,b.prev_hash,ST(b.index),b.data].join(" ").toLowerCase().includes(q)):r}
+    function table(){let r=rows(),tot=r.length,pages=Math.max(1,Math.ceil(tot/S.size));S.page=Math.min(S.page,pages);let start=(S.page-1)*S.size;E.body.innerHTML=r.slice(start,start+S.size).map(b=>{let st=ST(b.index),bad=st==="BROKEN";return`<tr class="${bad?"row-bad":""}"><td>${b.index}</td><td>${X(ET(b))}</td><td>${X(b.timestamp)}</td><td><code>${X(b.hash)}</code></td><td><code>${X(b.prev_hash)}</code></td><td><span class="status-pill ${bad?"bad":"good"}"><i></i>${st}</span></td><td><button class="row-btn" data-action="view" data-index="${b.index}">VIEW</button><button class="row-btn" data-action="download" data-index="${b.index}">DOWNLOAD</button></td></tr>`}).join("");E.show.textContent=`Showing ${tot?start+1:0}-${Math.min(start+S.size,tot)} of ${tot}`;E.page.textContent=S.page;E.pgPrev.disabled=S.page<=1;E.pgNext.disabled=S.page>=pages}
+    function color(t){return X(t).replace(/(SEAL\s+)([0-9a-f]{8})/,"$1<span>$2</span>")}function audit(){E.stream.innerHTML=S.logs.map(l=>`<div class="log-line ${l.level||""}">${color(l.text)}</div>`).join("");if(!S.pause)E.stream.scrollTop=0}
+    function log(t,l=""){S.logs.unshift({text:t,level:l});S.logs=S.logs.slice(0,200);audit()}function bLog(b){return`${TS(b.timestamp)}  SEAL   ${HH(b.hash)}  block #${b.index}  ${EN(b)}`}
+    function applyV(v){let was=S.valid;S.valid=!!v.valid;S.st=new Map((v.blocks||[]).map(x=>[x.index,x.status]));S.lastV=new Date;if(!S.valid&&was!==false)log(`${TS(new Date)}  VERIFY -----     CHAIN BROKEN`,"bad")}
+    async function health(){try{let h=await GET("/healthz");if(Number.isFinite(h.chain_length))E.side.textContent=`${h.chain_length} blocks`;E.dot.className="status-dot "+(h.status==="ok"&&S.valid?"good":"bad")}catch{E.dot.className="status-dot bad"}}
+    async function chain(){try{let b=await GET("/chain");if(Array.isArray(b)&&b.length){S.b=b.sort((a,b)=>a.index-b.index);S.lastSeal=S.b.at(-1).timestamp;S.st=new Map(S.b.map(x=>[x.index,"VALID"]));S.page=1;seed();render()}}catch{}}
+    async function verify(){let t=performance.now();try{let v=await GET("/verify");S.latency=performance.now()-t;applyV(v);render()}catch{E.dot.className="status-dot bad"}}
+    function addBlock(b){if(!S.b.some(x=>x.index===b.index))S.b.push(b);S.b.sort((a,b)=>a.index-b.index);S.st.set(b.index,"VALID");S.lastSeal=b.timestamp||new Date().toISOString();S.events.push(Date.now());log(bLog(b));metrics();preview();table();tick()}
+    function events(){try{let es=new EventSource(API+"/events");es.onopen=()=>E.sse.textContent="LIVE SSE";es.onmessage=e=>{try{addBlock(JSON.parse(e.data))}catch{}};es.onerror=()=>E.sse.textContent="SSE RETRY"}catch{E.sse.textContent="SSE OFFLINE"}}
+    function openD(b){E.json.textContent=JSON.stringify(b,null,2);E.drawer.classList.add("open");E.drawer.setAttribute("aria-hidden","false")}function down(b){let blob=new Blob([JSON.stringify(b,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`dcl-block-${b.index}.json`;a.click();URL.revokeObjectURL(a.href)}
+    async function seal(){try{addBlock(await GET("/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:`SEAL:manual_${Date.now()}`})}))}catch{log(`${TS(new Date)}  POST   -----     seal test failed`,"bad")}}
+    async function tamper(){let last=[...S.b].reverse().find(b=>b.index>0);if(!last)return;try{await GET("/tamper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({index:last.index})});await chain();await verify()}catch{log(`${TS(new Date)}  POST   -----     tamper failed`,"bad")}}
+    E.prev.addEventListener("click",e=>{let b=e.target.closest(".chain-block");if(b)openD(S.b.find(x=>x.index===+b.dataset.index))});E.body.addEventListener("click",e=>{let b=e.target.closest("button[data-action]");if(!b)return;let block=S.b.find(x=>x.index===+b.dataset.index);b.dataset.action==="view"?openD(block):down(block)});E.close.onclick=()=>{E.drawer.classList.remove("open");E.drawer.setAttribute("aria-hidden","true")};E.search.oninput=()=>{S.page=1;table()};E.pgPrev.onclick=()=>{S.page--;table()};E.pgNext.onclick=()=>{S.page++;table()};E.stream.onmouseenter=()=>S.pause=true;E.stream.onmouseleave=()=>{S.pause=false;E.stream.scrollTop=0};E.sealBtn.onclick=seal;E.tamperBtn.onclick=tamper;loadMock();health().then(chain).then(verify).finally(events);setInterval(verify,10000);setInterval(tick,1000);
+    </script>
+</body>
+</html>
