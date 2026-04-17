@@ -98,6 +98,17 @@ Server listens on `:8080`. Dashboard will be served at
 6. Hit `POST /event` again. New block's `prev_hash` references the
    broken hash — the break propagates forever.
 
+## Frontend (Next.js SOC Dashboard)
+
+```bash
+cd frontend/new-ui
+npm install
+npm run dev
+```
+
+Dashboard connects to Go backend at `localhost:8080`.
+Start the backend first, then the frontend, then the Python simulator.
+
 ## Structure
 
 ```
