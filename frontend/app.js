@@ -8,6 +8,7 @@ const appendStatus = document.getElementById("append-status");
 const eventTypeEl = document.getElementById("event-type");
 const customSuffixEl = document.getElementById("custom-suffix");
 const verifyBtn = document.getElementById("verify-btn");
+const resetBtn = document.getElementById("reset-btn");
 const tamperList = document.getElementById("tamper-list");
 
 const cardFor = new Map();
@@ -37,6 +38,13 @@ function updateCounts() {
     const n = cardFor.size;
     chainCountPill.textContent = n + (n === 1 ? " block" : " blocks");
     blockCountEl.textContent = String(n);
+}
+
+function clearChainView() {
+    cardFor.clear();
+    chainView.innerHTML = "";
+    tamperList.innerHTML = "";
+    updateCounts();
 }
 
 function appendCard(block) {
@@ -181,6 +189,23 @@ async function appendEvent() {
     }
 }
 
+async function resetChain() {
+    resetBtn.disabled = true;
+    setAppendStatus("resetting chain...");
+    try {
+        const res = await fetch("/reset", { method: "POST" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        await loadChain();
+        updateIntegrityBadge(undefined);
+        lastVerifiedEl.textContent = "never";
+        setAppendStatus("chain reset to genesis", "ok");
+    } catch (e) {
+        setAppendStatus("reset failed: " + e.message, "err");
+    } finally {
+        resetBtn.disabled = false;
+    }
+}
+
 function randomTxnId() {
     return Math.random().toString(36).slice(2, 10).toUpperCase();
 }
@@ -200,13 +225,18 @@ function startSSE() {
     };
 }
 
+async function loadChain() {
+    const res = await fetch("/chain");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blocks = await res.json();
+    clearChainView();
+    for (const b of blocks) appendCard(b);
+    updateIntegrityBadge(undefined);
+}
+
 async function loadInitial() {
     try {
-        const res = await fetch("/chain");
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const blocks = await res.json();
-        for (const b of blocks) appendCard(b);
-        updateIntegrityBadge(undefined);
+        await loadChain();
     } catch (e) {
         setAppendStatus("load failed: " + e.message, "err");
     }
@@ -214,6 +244,7 @@ async function loadInitial() {
 
 appendBtn.addEventListener("click", appendEvent);
 verifyBtn.addEventListener("click", verify);
+resetBtn.addEventListener("click", resetChain);
 
 startSSE();
 loadInitial();
