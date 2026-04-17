@@ -13,6 +13,38 @@ function truncHash(h: string): string {
   return h.length <= 16 ? h : h.slice(0, 16) + "…";
 }
 
+function fmtTs(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+    const time = d.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    return `${date} · ${time}`;
+  } catch {
+    return iso;
+  }
+}
+
+function SkeletonCard() {
+  return (
+    <div className="w-72 flex-shrink-0 rounded-sm p-5 bg-nyx-card border border-nyx-border animate-pulse">
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-2.5 bg-nyx-wire rounded w-20" />
+        <div className="h-2.5 bg-nyx-wire rounded w-12" />
+      </div>
+      <div className="h-2 bg-nyx-wire rounded w-36 mb-4" />
+      <div className="h-12 bg-nyx-wire/70 rounded mb-3" />
+      <div className="h-2 bg-nyx-wire rounded w-40 mb-2" />
+      <div className="h-2 bg-nyx-wire rounded w-32" />
+    </div>
+  );
+}
+
 export function ChainViewer() {
   const { chain, verification, loading, error, refresh } = useChainStatus();
   const { events: sseEvents } = useSSE();
@@ -159,10 +191,12 @@ export function ChainViewer() {
     verification?.blocks.find((b) => b.index === index) ?? null;
 
   const allValid = renderBroken.size === 0;
+  const showSkeleton = loading && chain.length === 0;
 
   return (
     <section className="py-12 bg-nyx-dark">
       <div className="max-w-7xl mx-auto px-6">
+        {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <span className="mono-label text-nyx-accent">CHAIN EXPLORER</span>
 
@@ -177,9 +211,7 @@ export function ChainViewer() {
               }`}
             />
             <span className="mono-label">
-              {allValid
-                ? "CHAIN INTEGRITY: VALID"
-                : "INTEGRITY BREACH DETECTED"}
+              {allValid ? "CHAIN INTEGRITY: VALID" : "INTEGRITY BREACH DETECTED"}
             </span>
           </div>
 
@@ -194,32 +226,68 @@ export function ChainViewer() {
             <button
               onClick={handleVerify}
               disabled={verifying}
-              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-text hover:border-nyx-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-text hover:border-nyx-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
             >
+              {verifying && (
+                <svg
+                  className="animate-spin h-3 w-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              )}
               {verifying ? "VERIFYING…" : "VERIFY"}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="mt-4 px-4 py-3 border border-nyx-broken/30 bg-nyx-broken-dim/10 text-nyx-broken text-sm rounded-sm">
+          <div className="mt-4 px-4 py-3 border border-nyx-broken/30 bg-nyx-broken-dim/10 text-nyx-broken text-sm rounded-sm font-mono">
             {error}
           </div>
         )}
 
+        {/* Block scroll area */}
         <div
           ref={scrollContainerRef}
           className="mt-8 flex gap-4 overflow-x-auto pb-4"
+          style={{ scrollbarWidth: "thin" }}
         >
-          {chain.length === 0 && !loading && (
+          {showSkeleton && (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          )}
+
+          {!showSkeleton && chain.length === 0 && (
             <div className="mono-label text-nyx-dim py-8">
-              No blocks yet. Append an event to ingest.
+              No blocks yet. Start the simulator to begin ingesting events.
             </div>
           )}
 
           {chain.map((block) => {
             const isBroken = renderBroken.has(block.index);
             const vr = verifyResultFor(block.index);
+            const isGenesis = block.index === 0;
+            const prevHashDisplay = isGenesis
+              ? "0000...0000"
+              : truncHash(block.prev_hash);
+
             return (
               <div
                 key={block.index}
@@ -235,7 +303,7 @@ export function ChainViewer() {
               >
                 <div className="flex items-center justify-between">
                   <span className="mono-label text-nyx-silver">
-                    BLOCK #{block.index}
+                    {isGenesis ? "GENESIS" : `BLOCK #${block.index}`}
                   </span>
                   <span
                     className={`mono-label px-2 py-0.5 rounded-sm ${
@@ -249,7 +317,7 @@ export function ChainViewer() {
                 </div>
 
                 <div className="mono-label text-nyx-dim mt-2 truncate">
-                  {block.timestamp}
+                  {fmtTs(block.timestamp)}
                 </div>
 
                 <div className="font-mono text-xs text-nyx-text mt-3 p-3 bg-nyx-black/50 rounded-sm break-all">
@@ -260,7 +328,7 @@ export function ChainViewer() {
                   HASH: {truncHash(block.hash)}
                 </div>
                 <div className="mono-label text-nyx-dim mt-1 truncate">
-                  PREV: {truncHash(block.prev_hash)}
+                  PREV: {prevHashDisplay}
                 </div>
 
                 {isBroken && vr && (
@@ -280,7 +348,7 @@ export function ChainViewer() {
                   </div>
                 )}
 
-                {block.index !== 0 && (
+                {!isGenesis && (
                   <button
                     onClick={() => handleTamper(block.index)}
                     className="mt-4 w-full text-nyx-broken/60 text-[10px] mono-label border border-nyx-broken/20 rounded-sm py-1.5 hover:bg-nyx-broken/10 hover:text-nyx-broken transition-colors"
