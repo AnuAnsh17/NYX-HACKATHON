@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -62,6 +63,9 @@ func (c *Chain) Tamper(index int) error {
 
 	if index < 0 || index >= len(c.blocks) {
 		return fmt.Errorf("index %d out of range [0,%d)", index, len(c.blocks))
+	}
+	if index == 0 {
+		return errors.New("cannot tamper genesis block")
 	}
 	c.blocks[index].Data = "TAMPERED"
 	return nil

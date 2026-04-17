@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/AnuAnsh17/nyx-hackathon/chain"
 	"github.com/AnuAnsh17/nyx-hackathon/verifier"
@@ -23,11 +24,19 @@ func (h *Handler) PostEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
+	if !strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		writeError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+		return
+	}
 	var req struct {
 		Data string `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	if strings.TrimSpace(req.Data) == "" {
+		writeError(w, http.StatusBadRequest, "data field required")
 		return
 	}
 	block := h.chain.Append(req.Data)
@@ -70,18 +79,23 @@ func (h *Handler) PostTamper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Index int `json:"index"`
+		Index *int `json:"index"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
-	if err := h.chain.Tamper(req.Index); err != nil {
+	if req.Index == nil {
+		writeError(w, http.StatusBadRequest, "index field required")
+		return
+	}
+	index := *req.Index
+	if err := h.chain.Tamper(index); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"tampered": req.Index,
+		"tampered": index,
 		"data":     "TAMPERED",
 	})
 }
