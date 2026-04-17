@@ -3,10 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCL Dashboard</title>
+    <title>DCL Clean Room V1</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="logo-dot"></span>
+            <span class="brand-name">DCL Clean Room V1</span>
+        </div>
+        <div class="tagline">We don't store logs. We store proof.</div>
+    </header>
+
+    <main class="layout">
+        <section class="panel panel-left">
+            <h2 class="panel-title">Append Event</h2>
+            <div class="card">
+                <label class="field-label" for="event-type">Event type</label>
+                <select id="event-type" class="select">
+                    <option value="TXN">TXN</option>
+                    <option value="KYC">KYC</option>
+                    <option value="LOGIN">LOGIN</option>
+                    <option value="ALERT">ALERT</option>
+                    <option value="CUSTOM">CUSTOM</option>
+                </select>
+
+                <label class="field-label" for="custom-suffix">Custom suffix (optional)</label>
+                <input id="custom-suffix" class="input" type="text" placeholder="e.g. reference or note" />
+
+                <button id="append-btn" class="btn btn-primary">Append to Chain</button>
+                <div id="append-status" class="status-line"></div>
+            </div>
+        </section>
+
+        <section class="panel panel-center">
+            <div class="panel-header">
+                <h2 class="panel-title">Hash Chain</h2>
+                <span id="chain-count-pill" class="pill">0 blocks</span>
+            </div>
+            <div id="chain-view" class="chain-view"></div>
+        </section>
+
+        <section class="panel panel-right">
+            <h2 class="panel-title">Chain Integrity</h2>
+            <div class="card">
+                <div id="integrity-badge" class="badge badge-unknown">UNKNOWN</div>
+                <div class="meta-row">
+                    <span class="meta-label">Blocks</span>
+                    <span id="block-count" class="meta-value">0</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Last verified</span>
+                    <span id="last-verified" class="meta-value">never</span>
+                </div>
+                <button id="verify-btn" class="btn btn-secondary">Verify Now</button>
+            </div>
+
+            <h3 class="panel-subtitle">Tamper Controls</h3>
+            <div class="card">
+                <p class="helper-text">Flip a block's data field to <strong>TAMPERED</strong>. The stored hash is left untouched, so downstream verification cascades to BROKEN.</p>
+                <div id="tamper-list" class="tamper-list"></div>
+            </div>
+        </section>
+    </main>
+
     <script src="app.js"></script>
 </body>
 </html>
