@@ -22,6 +22,7 @@
     <div class="top-meta">
       <span id="systemDot" class="status-dot"></span>
       <span id="verifiedAt" class="verified-at">VERIFIED --:--:-- UTC</span>
+      <button id="resetBtn" class="reset-btn">RESET CHAIN</button>
       <div class="user-pill"><span class="avatar">AY</span><span>compliance.officer</span></div>
     </div>
   </header>
@@ -288,7 +289,7 @@
   // ════════════ HELPERS ════════════
   const pad = (n,w=2) => String(n).padStart(w,"0");
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const truncHash = h => h ? h.slice(0,12) : "------------";
+  const truncHash = h => h ? h.slice(0,16) : "----------------";
   const eventType = b => String(b.data || "EVENT").split(":")[0].slice(0,18).toUpperCase();
   const eventName = b => { const s = String(b.data || "GENESIS"); const p = s.split(":"); return p.slice(1).join(":") || s.toLowerCase(); };
   const utcTime = (d=new Date()) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
@@ -594,18 +595,21 @@
     if (S.page > pages) S.page = pages;
     const start = (S.page - 1) * S.pageSize;
     const slice = rows.slice(start, start + S.pageSize);
+    const eyeSVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="8" rx="6" ry="4"/><circle cx="8" cy="8" r="1.8"/></svg>';
+    const dlSVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M3 12h10"/></svg>';
     $("evidenceBody").innerHTML = slice.map(b => {
       const st = statusOf(b.index);
       const broken = st === "BROKEN";
       const sel = S.selectedIndex === b.index;
       const fresh = opts.newIndex === b.index ? " row-new" : "";
+      const fullHash = b.hash || "";
       return `<tr class="${broken?"row-broken":""}${sel?" row-selected":""}${fresh}" data-idx="${b.index}">
         <td>${b.index}</td>
         <td>${esc(eventType(b))}</td>
         <td>${esc(tsFmt(b.timestamp))}</td>
-        <td class="hash-cell"><code>${esc(truncHash(b.hash))}…${esc((b.hash||"").slice(-6))}</code></td>
-        <td><span class="status-pill ${broken?"bad":"good"}"><span class="ic">${broken?"✗":"✓"}</span>${st}</span></td>
-        <td><button class="row-btn" data-action="view" data-idx="${b.index}">VIEW</button><button class="row-btn" data-action="download" data-idx="${b.index}">JSON</button></td>
+        <td class="hash-cell"><code data-full="${esc(fullHash)}">${esc(truncHash(b.hash))}</code></td>
+        <td><span class="status-pill ${broken?"bad":"good"}"><span class="ic">${broken?"\u2717":"\u2713"}</span>${st}</span></td>
+        <td><button class="row-btn" data-action="view" data-idx="${b.index}" title="View">${eyeSVG}</button><button class="row-btn" data-action="download" data-idx="${b.index}" title="Download JSON">${dlSVG}</button></td>
       </tr>`;
     }).join("");
     $("showingRows").textContent = `Showing ${tot?start+1:0}-${Math.min(start+S.pageSize, tot)} of ${tot}`;
@@ -781,14 +785,26 @@
     const idx = nowSec - S.rateBucketStart;
     if (idx >= 0 && idx < RATE_BUCKETS) S.rateBuckets[idx]++;
     pushLog(blockToLog(b));
+
+    // ── Staggered SSE cascade animation ──
+    // 1. Hero ring: new dot flash (0ms)
     fullRender({ newIndex: b.index });
-    // small ring pulse on the new block
     const dot = document.querySelector(`#ringDots circle[data-idx="${b.index}"]`);
     if (dot) {
-      dot.style.fill = "#2dd4bf";
-      dot.setAttribute("r", "1.6");
-      setTimeout(() => { dot.style.fill = ""; dot.setAttribute("r", "0.8"); }, 600);
+      dot.classList.add("dot-flash");
+      dot.setAttribute("r", "2");
+      setTimeout(() => { dot.classList.remove("dot-flash"); dot.setAttribute("r", "0.8"); }, 300);
     }
+    // 2. Evidence table: row-new animation (50ms — CSS handles via row-new class already applied above)
+    // 3. Integrity monitor: scale-in newest node (100ms)
+    setTimeout(() => {
+      const firstNode = document.querySelector("#timeline .tl-node:first-child");
+      if (firstNode) {
+        firstNode.classList.add("node-new");
+        setTimeout(() => firstNode.classList.remove("node-new"), 250);
+      }
+    }, 100);
+    // 4 & 5: Chart + Heatmap update already happened in fullRender
   }
 
   // ════════════ ACTIONS ════════════
@@ -852,8 +868,54 @@
     URL.revokeObjectURL(a.href);
   }
 
+  // ════════════ RESET ════════════
+  async function doReset() {
+    try {
+      await api("/reset", { method: "POST" });
+      location.reload();
+    } catch (e) {
+      pushLog(`${tsFmt(new Date())}  POST     reset failed: ${e.message}`, "bad");
+    }
+  }
+
+  // ════════════ SKELETON LOADING ════════════
+  function showSkeleton() {
+    // Hero ring skeleton
+    const ringCenter = $("ringStatus");
+    if (ringCenter) ringCenter.innerHTML = "INITIALIZING CRYPTOGRAPHIC SEALS...";
+    $("ringFigure").textContent = "—";
+    // Evidence table skeleton rows
+    const tbody = $("evidenceBody");
+    let skRows = "";
+    for (let i = 0; i < 5; i++) {
+      skRows += `<tr><td colspan="6"><div class="skeleton-row">${
+        ['','','','','',''].map(() => '<div class="skeleton-cell"></div>').join('')
+      }</div></td></tr>`;
+    }
+    tbody.innerHTML = skRows;
+    // Chart placeholders
+    document.querySelectorAll(".chart-body canvas").forEach(cv => {
+      cv.style.opacity = "0.15";
+    });
+  }
+  function hideSkeleton() {
+    document.querySelectorAll(".chart-body canvas").forEach(cv => {
+      cv.style.opacity = "1";
+      cv.classList.add("hydrate-fade-in");
+    });
+    // Cascade ring dots with stagger
+    setTimeout(() => {
+      const dots = document.querySelectorAll("#ringDots circle.dot");
+      dots.forEach((d, i) => {
+        d.style.opacity = "0";
+        setTimeout(() => { d.style.opacity = ""; }, i * 20);
+      });
+    }, 50);
+  }
+
   // ════════════ EVENT BINDINGS ════════════
   document.addEventListener("DOMContentLoaded", () => {
+    showSkeleton();
     initCharts();
     $("evidenceBody").addEventListener("click", e => {
       const btn = e.target.closest("button[data-action]");
@@ -884,11 +946,16 @@
     $("auditStream").onmouseleave = () => { S.pauseScroll = false; $("auditStream").scrollTop = 0; };
     $("sealBtn").onclick = doSeal;
     $("tamperBtn").onclick = doTamper;
+    $("resetBtn").onclick = doReset;
     window.addEventListener("resize", drawHeatmap);
 
     // Boot
     fullRender();
-    loadHealth().then(loadChain).then(loadVerify).finally(startSSE);
+    loadHealth()
+      .then(loadChain)
+      .then(loadVerify)
+      .then(() => { hideSkeleton(); })
+      .finally(startSSE);
     setInterval(tick, 1000);
     setInterval(loadVerify, 10000);
     setInterval(loadHealth, 5000);
