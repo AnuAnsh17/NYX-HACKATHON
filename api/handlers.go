@@ -3,8 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/AnuAnsh17/nyx-hackathon/chain"
 	"github.com/AnuAnsh17/nyx-hackathon/verifier"
@@ -13,6 +16,7 @@ import (
 type Handler struct {
 	chain       *chain.Chain
 	broadcaster *Broadcaster
+	simRunning  atomic.Bool
 }
 
 func NewHandler(c *chain.Chain, b *Broadcaster) *Handler {
@@ -153,4 +157,85 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// ──────────────────────────────────────────────────────────
+// Simulation handler
+// ──────────────────────────────────────────────────────────
+
+var demoEventNames = []string{
+	"LOAN:disbursement_check",
+	"KYC:aadhaar_verified",
+	"AUDIT:quarterly_review",
+	"COMPLIANCE:rbi_report",
+	"TRANSACTION:emi_received",
+	"RISK:credit_score_pull",
+	"ONBOARD:new_borrower",
+	"ALERT:fraud_flag_cleared",
+	"REVIEW:manager_approval",
+	"SANCTION:limit_update",
+}
+
+func (h *Handler) PostSimulate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	mode := r.URL.Query().Get("mode")
+	if mode != "demo" && mode != "stress" {
+		writeError(w, http.StatusBadRequest, "mode must be 'demo' or 'stress'")
+		return
+	}
+
+	if !h.simRunning.CompareAndSwap(false, true) {
+		writeError(w, http.StatusConflict, "simulation already running")
+		return
+	}
+
+	switch mode {
+	case "demo":
+		go h.runDemo()
+	case "stress":
+		go h.runStress()
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status": "started",
+		"mode":   mode,
+	})
+}
+
+func (h *Handler) runDemo() {
+	defer h.simRunning.Store(false)
+
+	count := 20
+	for i := 0; i < count; i++ {
+		name := demoEventNames[rand.Intn(len(demoEventNames))]
+		data := fmt.Sprintf("%s_%d", name, time.Now().UnixMilli())
+		block := h.chain.Append(data)
+		if bs, err := json.Marshal(block); err == nil {
+			h.broadcaster.Publish(string(bs))
+		}
+		// 400–600ms jitter
+		delay := time.Duration(400+rand.Intn(200)) * time.Millisecond
+		time.Sleep(delay)
+	}
+}
+
+func (h *Handler) runStress() {
+	defer h.simRunning.Store(false)
+
+	count := 3000
+	for i := 0; i < count; i++ {
+		data := fmt.Sprintf("STRESS:event_%d_%d", i, time.Now().UnixNano())
+		block := h.chain.Append(data)
+		if bs, err := json.Marshal(block); err == nil {
+			h.broadcaster.Publish(string(bs))
+		}
+		// tiny yield to prevent total CPU starvation
+		if i%50 == 0 {
+			time.Sleep(time.Millisecond)
+		}
+	}
 }

@@ -1038,7 +1038,61 @@ code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
   background: var(--accent-glow);
 }
 
-/* ─────────────────────  HASH TOOLTIPS  ───────────────────── */
+/* ─────────────────────  SIMULATION CONTROLS  ───────────────────── */
+.sim-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: 8px;
+}
+
+/* topbar simulation badge */
+.sim-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+  white-space: nowrap;
+}
+.sim-status.active {
+  opacity: 1;
+}
+.sim-status.stress {
+  color: var(--warn);
+}
+
+/* stress mode throughput bar */
+.stress-bar {
+  position: fixed;
+  top: 56px; left: 0; right: 0;
+  height: 2px;
+  background: transparent;
+  z-index: 50;
+  pointer-events: none;
+}
+.stress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--warn), var(--accent-bright));
+  box-shadow: 0 0 12px rgba(245,158,11,0.4);
+  transition: width 200ms var(--ease);
+}
+
+/* during stress mode, suppress heavy per-block animations */
+body.stress-mode .ring-svg .ring-rotate { animation-duration: 240s; }
+body.stress-mode .dot { animation: none !important; }
+body.stress-mode .row-new { animation: none !important; }
+body.stress-mode .dot-flash { animation: none !important; }
+body.stress-mode .node-new { animation: none !important; }
+
+
 .hash-cell code { position: relative; cursor: default; }
 .hash-cell code[data-full]::after {
   content: attr(data-full);

@@ -21,11 +21,13 @@
     <nav class="breadcrumb">overview &gt; integrity</nav>
     <div class="top-meta">
       <span id="systemDot" class="status-dot"></span>
+      <span id="simStatus" class="sim-status"></span>
       <span id="verifiedAt" class="verified-at">VERIFIED --:--:-- UTC</span>
       <button id="resetBtn" class="reset-btn">RESET CHAIN</button>
       <div class="user-pill"><span class="avatar">AY</span><span>compliance.officer</span></div>
     </div>
   </header>
+  <div id="stressBar" class="stress-bar"><div id="stressBarFill" class="stress-bar-fill"></div></div>
 
   <!-- ════════════ LEFT SIDEBAR ════════════ -->
   <aside class="sidebar-left">
@@ -80,6 +82,9 @@
       <div class="side-actions">
         <button id="sealBtn" class="ghost-btn">SEAL TEST</button>
         <button id="tamperBtn" class="ghost-btn danger">TAMPER LAST</button>
+        <div class="sim-label">Simulation</div>
+        <button id="demoBtn" class="ghost-btn">RUN DEMO</button>
+        <button id="stressBtn" class="ghost-btn">RUN STRESS</button>
       </div>
     </section>
   </aside>
@@ -284,6 +289,9 @@
     pauseScroll: false,
     selectedIndex: null,
     charts: {},
+    simMode: null,        // null | "demo" | "stress"
+    sseQueue: [],          // SSE event batch queue
+    sseDrainTimer: null,
   };
 
   // ════════════ HELPERS ════════════
@@ -764,13 +772,61 @@
       es.onmessage = e => {
         try {
           const b = JSON.parse(e.data);
-          ingestBlock(b);
+          // Batch mode: queue events and drain on interval
+          if (S.simMode === "stress") {
+            S.sseQueue.push(b);
+            if (!S.sseDrainTimer) {
+              S.sseDrainTimer = setInterval(drainSSEQueue, 100);
+            }
+          } else {
+            ingestBlock(b);
+          }
         } catch {}
       };
       es.onerror = () => { $("liveBadge").textContent = "SSE RETRY"; setTimeout(() => { es.close(); startSSE(); }, 3000); };
     } catch {
       $("liveBadge").textContent = "SSE OFFLINE";
     }
+  }
+
+  // ════════════ SSE BATCH DRAIN ════════════
+  function drainSSEQueue() {
+    if (S.sseQueue.length === 0) {
+      // If queue empty for a while, check if stress is done
+      return;
+    }
+    // Process batch: ingest all queued, render once
+    const batch = S.sseQueue.splice(0, S.sseQueue.length);
+    for (const b of batch) {
+      if (S.blocks.some(x => x.index === b.index)) continue;
+      S.blocks.push(b);
+      S.status.set(b.index, "VALID");
+      S.lastSeal = b.timestamp || new Date().toISOString();
+      S.eventTimes.push(Date.now());
+      const nowSec = Math.floor(Date.now()/1000);
+      const idx = nowSec - S.rateBucketStart;
+      if (idx >= 0 && idx < RATE_BUCKETS) S.rateBuckets[idx]++;
+    }
+    if (S.eventTimes.length > 200) S.eventTimes = S.eventTimes.slice(-200);
+    S.blocks.sort((a,b) => a.index - b.index);
+    // Log summary instead of individual lines
+    pushLog(`${tsFmt(new Date())}  BATCH    ${batch.length} events ingested  chain #${S.blocks.length - 1}`);
+    fullRender();
+    // Update stress bar progress (estimate: 3000 target)
+    const stressTarget = 3000;
+    const chainLen = S.blocks.length;
+    const pct = Math.min(100, ((chainLen / stressTarget) * 100));
+    const fill = $("stressBarFill");
+    if (fill) fill.style.width = pct + "%";
+  }
+
+  function stopSSEBatching() {
+    if (S.sseDrainTimer) {
+      clearInterval(S.sseDrainTimer);
+      S.sseDrainTimer = null;
+    }
+    // Drain any remaining
+    if (S.sseQueue.length > 0) drainSSEQueue();
   }
   function ingestBlock(b) {
     if (S.blocks.some(x => x.index === b.index)) return;
@@ -871,10 +927,66 @@
   // ════════════ RESET ════════════
   async function doReset() {
     try {
+      setSimMode(null);
       await api("/reset", { method: "POST" });
       location.reload();
     } catch (e) {
       pushLog(`${tsFmt(new Date())}  POST     reset failed: ${e.message}`, "bad");
+    }
+  }
+
+  // ════════════ SIMULATION ════════════
+  function setSimMode(mode) {
+    S.simMode = mode;
+    const badge = $("simStatus");
+    const body = document.body;
+    const demoBtn = $("demoBtn");
+    const stressBtn = $("stressBtn");
+
+    if (!mode) {
+      badge.classList.remove("active", "stress");
+      badge.textContent = "";
+      body.classList.remove("stress-mode");
+      $("stressBarFill").style.width = "0%";
+      stopSSEBatching();
+      demoBtn.disabled = false;
+      stressBtn.disabled = false;
+      return;
+    }
+
+    badge.classList.add("active");
+    demoBtn.disabled = true;
+    stressBtn.disabled = true;
+
+    if (mode === "demo") {
+      badge.classList.remove("stress");
+      badge.textContent = "SIMULATION: DEMO";
+      body.classList.remove("stress-mode");
+      // Demo finishes after ~10s, auto-clear
+      setTimeout(() => setSimMode(null), 12000);
+    } else {
+      badge.classList.add("stress");
+      badge.textContent = "\u26A1 HIGH THROUGHPUT MODE \u2014 processing events...";
+      body.classList.add("stress-mode");
+      // Stress finishes in ~5-10s, poll chain length to detect end
+      const pollEnd = setInterval(() => {
+        // If queue is empty and no new events for 2s, assume done
+        if (S.sseQueue.length === 0 && S.sseDrainTimer) {
+          clearInterval(pollEnd);
+          setTimeout(() => setSimMode(null), 1500);
+        }
+      }, 2000);
+    }
+  }
+
+  async function doSimulate(mode) {
+    try {
+      setSimMode(mode);
+      pushLog(`${tsFmt(new Date())}  SIM      ${mode.toUpperCase()} simulation started`);
+      await api(`/simulate?mode=${mode}`, { method: "POST" });
+    } catch (e) {
+      pushLog(`${tsFmt(new Date())}  SIM      simulation failed: ${e.message}`, "bad");
+      setSimMode(null);
     }
   }
 
@@ -947,6 +1059,8 @@
     $("sealBtn").onclick = doSeal;
     $("tamperBtn").onclick = doTamper;
     $("resetBtn").onclick = doReset;
+    $("demoBtn").onclick = () => doSimulate("demo");
+    $("stressBtn").onclick = () => doSimulate("stress");
     window.addEventListener("resize", drawHeatmap);
 
     // Boot

@@ -8,6 +8,7 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/verify", withCORS(h.GetVerify))
 	mux.HandleFunc("/tamper", withCORS(h.PostTamper))
 	mux.HandleFunc("/reset", withCORS(h.PostReset))
+	mux.HandleFunc("/simulate", withCORS(h.PostSimulate))
 	mux.HandleFunc("/events", withCORS(h.GetEvents))
 	mux.HandleFunc("/healthz", withCORS(h.Healthz))
 
