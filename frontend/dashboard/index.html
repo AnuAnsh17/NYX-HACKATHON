@@ -51,12 +51,12 @@
         <svg id="sideSpark" viewBox="0 0 200 36" preserveAspectRatio="none">
           <defs>
             <linearGradient id="sparkGrad" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.4"/>
-              <stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/>
+              <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
             </linearGradient>
           </defs>
           <path id="sparkFill" fill="url(#sparkGrad)" d=""/>
-          <path id="sparkLine" fill="none" stroke="#14b8a6" stroke-width="1.2" d=""/>
+          <path id="sparkLine" fill="none" stroke="#C9A84C" stroke-width="1.2" d=""/>
         </svg>
       </div>
 
@@ -64,7 +64,7 @@
         <div class="health-ring">
           <svg viewBox="0 0 60 60">
             <circle cx="30" cy="30" r="24" fill="none" stroke="#181a24" stroke-width="5"/>
-            <circle id="ringIntegrity" cx="30" cy="30" r="24" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="0" transform="rotate(-90 30 30)" style="transition: stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1), stroke 300ms"/>
+            <circle id="ringIntegrity" cx="30" cy="30" r="24" fill="none" stroke="#27C97F" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="0" transform="rotate(-90 30 30)" style="transition: stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1), stroke 300ms"/>
             <text id="ringIntegrityTxt" x="30" y="34" text-anchor="middle" fill="#e8e9ee" font-family="JetBrains Mono" font-size="11" font-weight="600">100%</text>
           </svg>
           <span class="health-ring-label">Integrity</span>
@@ -72,7 +72,7 @@
         <div class="health-ring">
           <svg viewBox="0 0 60 60">
             <circle cx="30" cy="30" r="24" fill="none" stroke="#181a24" stroke-width="5"/>
-            <circle id="ringConfidence" cx="30" cy="30" r="24" fill="none" stroke="#14b8a6" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="15" transform="rotate(-90 30 30)" style="transition: stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1)"/>
+            <circle id="ringConfidence" cx="30" cy="30" r="24" fill="none" stroke="#C9A84C" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="15" transform="rotate(-90 30 30)" style="transition: stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1)"/>
             <text id="ringConfidenceTxt" x="30" y="34" text-anchor="middle" fill="#e8e9ee" font-family="JetBrains Mono" font-size="11" font-weight="600">90%</text>
           </svg>
           <span class="health-ring-label">Evidence</span>
@@ -96,8 +96,11 @@
     <section id="hero" class="panel hero">
       <div class="ring-wrap">
         <svg class="ring-svg" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="ring-outer" cx="50" cy="50" r="47"/>
+          <circle class="ring-inner" cx="50" cy="50" r="30"/>
           <circle class="ring-bg" cx="50" cy="50" r="40"/>
           <circle class="ring-glow" cx="50" cy="50" r="40"/>
+          <g id="ringTicks"></g>
           <g id="ringRotate" class="ring-rotate">
             <g id="ringDots"></g>
             <g id="ringCrack"></g>
@@ -369,6 +372,25 @@
     } else {
       crack.innerHTML = "";
     }
+
+    // Tick marks on the outer ring
+    const ticksEl = $("ringTicks");
+    if (ticksEl) {
+      const tickCount = 36;
+      let tickSvg = "";
+      for (let i = 0; i < tickCount; i++) {
+        const angle = (i / tickCount) * Math.PI * 2 - Math.PI / 2;
+        const major = i % 9 === 0;
+        const r1 = major ? 43 : 44.5;
+        const r2 = major ? 47 : 46;
+        const x1 = (cx + Math.cos(angle) * r1).toFixed(2);
+        const y1 = (cy + Math.sin(angle) * r1).toFixed(2);
+        const x2 = (cx + Math.cos(angle) * r2).toFixed(2);
+        const y2 = (cy + Math.sin(angle) * r2).toFixed(2);
+        tickSvg += `<line class="ring-tick${major ? " major" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      }
+      ticksEl.innerHTML = tickSvg;
+    }
   }
 
   // ════════════ SPARKLINE (events/sec last 60s) ════════════
@@ -396,9 +418,9 @@
     const total = S.blocks.length || 1;
     const broken = brokenCount();
     const integrity = Math.max(0, 100 - (broken/total)*100);
-    setRing($("ringIntegrity"), $("ringIntegrityTxt"), integrity, integrity === 100 ? "#22c55e" : "#ef4444");
+    setRing($("ringIntegrity"), $("ringIntegrityTxt"), integrity, integrity === 100 ? "#27C97F" : "#E03050");
     const conf = S.valid ? 96 : Math.max(20, 96 - broken * 12);
-    setRing($("ringConfidence"), $("ringConfidenceTxt"), conf, S.valid ? "#14b8a6" : "#f59e0b");
+    setRing($("ringConfidence"), $("ringConfidenceTxt"), conf, S.valid ? "#C9A84C" : "#D4A843");
   }
 
   // ════════════ CHARTS ════════════
@@ -410,8 +432,8 @@
 
     const rateCtx = $("rateChart").getContext("2d");
     const grad = rateCtx.createLinearGradient(0, 0, 0, 280);
-    grad.addColorStop(0, "rgba(20, 184, 166, 0.45)");
-    grad.addColorStop(1, "rgba(20, 184, 166, 0)");
+    grad.addColorStop(0, "rgba(201,168,76,0.45)");
+    grad.addColorStop(1, "rgba(201,168,76,0)");
 
     S.charts.rate = new Chart(rateCtx, {
       type: "line",
@@ -419,14 +441,14 @@
         labels: Array(RATE_BUCKETS).fill(""),
         datasets: [{
           data: [...S.rateBuckets],
-          borderColor: "#14b8a6",
+          borderColor: "#C9A84C",
           borderWidth: 1.6,
           backgroundColor: grad,
           fill: true,
           tension: 0.35,
           pointRadius: 0,
           pointHoverRadius: 3,
-          pointHoverBackgroundColor: "#2dd4bf",
+          pointHoverBackgroundColor: "#E8D06A",
         }],
       },
       options: {
@@ -447,8 +469,8 @@
         labels: ["VALID", "BROKEN"],
         datasets: [{
           data: [1, 0],
-          backgroundColor: ["#22c55e", "#ef4444"],
-          borderColor: "#0a0a10",
+          backgroundColor: ["#27C97F", "#E03050"],
+          borderColor: "rgba(6,4,16,0.8)",
           borderWidth: 2,
           hoverOffset: 4,
         }],
@@ -503,9 +525,9 @@
         const x = (startCol + c) * colW;
         const y = r * rowH;
         if (broken) {
-          ctx.fillStyle = `rgba(239, 68, 68, ${0.25 + intensity * 0.7})`;
+          ctx.fillStyle = `rgba(224, 48, 80, ${0.25 + intensity * 0.7})`;
         } else {
-          ctx.fillStyle = `rgba(20, 184, 166, ${0.06 + intensity * 0.85})`;
+          ctx.fillStyle = `rgba(201, 168, 76, ${0.06 + intensity * 0.85})`;
         }
         ctx.fillRect(x + 0.5, y + 0.5, colW - 1, rowH - 1);
       }
@@ -661,7 +683,7 @@
   function pushLatency(ms) {
     S.latencyHist.push(ms);
     if (S.latencyHist.length > 10) S.latencyHist.shift();
-    drawTele("latencyChart", S.latencyHist, "#14b8a6");
+    drawTele("latencyChart", S.latencyHist, "#C9A84C");
     $("latencyVal").textContent = fmtMs(ms);
   }
   function drawTele(id, data, color) {
@@ -684,7 +706,7 @@
     $("memVal").textContent = memNext.toFixed(0) + " MB";
     const netNext = Math.max(2, Math.min(80, S.netHist[S.netHist.length-1] + (Math.random()-0.5)*8));
     S.netHist.push(netNext); if (S.netHist.length > 20) S.netHist.shift();
-    drawTele("netChart", S.netHist, "#f59e0b");
+    drawTele("netChart", S.netHist, "#D4A843");
     $("netVal").textContent = netNext.toFixed(1) + " KB/s";
   }
 
@@ -1065,6 +1087,12 @@
 
   // ════════════ EVENT BINDINGS ════════════
   document.addEventListener("DOMContentLoaded", () => {
+    // Cursor spotlight
+    document.addEventListener("mousemove", e => {
+      document.documentElement.style.setProperty("--cx", e.clientX + "px");
+      document.documentElement.style.setProperty("--cy", e.clientY + "px");
+    }, { passive: true });
+
     showSkeleton();
     initCharts();
     $("evidenceBody").addEventListener("click", e => {

@@ -1,77 +1,221 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
-html,
-body {
-  @apply bg-nyx-black text-nyx-text font-body;
+/* ─── Base ───────────────────────────────────────────────────── */
+
+html {
+  background-color: #060410;
+  background-image:
+    radial-gradient(ellipse 90% 55% at 15% -5%,  rgba(124,58,237,0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 88%  5%,  rgba(155,28,53,0.10)  0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 50% 100%, rgba(80,50,180,0.08)  0%, transparent 50%);
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+html, body {
+  @apply text-nyx-text font-body;
 }
-::-webkit-scrollbar-track {
-  background: #0a0a0f;
+
+/* Cursor spotlight — updated by CursorSpotlight component */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    650px circle at var(--cursor-x, -300px) var(--cursor-y, -300px),
+    rgba(201,168,76,0.045) 0%,
+    transparent 70%
+  );
 }
-::-webkit-scrollbar-thumb {
-  background: #262636;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3a3a52;
-}
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #262636 #0a0a0f;
-}
+
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #060410; }
+::-webkit-scrollbar-thumb  { background: #2C2850; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #403C6C; }
+* { scrollbar-width: thin; scrollbar-color: #2C2850 #060410; }
+
+/* ─── Utilities ──────────────────────────────────────────────── */
 
 @utility mono-label {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
+/* Glassmorphism */
 @utility glass {
-  @apply backdrop-blur-xl bg-nyx-surface/70 border border-nyx-border;
+  @apply backdrop-blur-2xl bg-nyx-surface/45 border border-nyx-accent/18;
 }
 
+@utility glass-deep {
+  @apply backdrop-blur-3xl bg-nyx-dark/60 border border-nyx-accent/22;
+}
+
+@utility glass-card {
+  @apply backdrop-blur-xl bg-nyx-card/70 border border-nyx-border;
+}
+
+/* Status */
 @utility status-valid {
-  @apply bg-nyx-valid-dim/30 border border-nyx-valid/30 text-nyx-valid;
+  @apply bg-nyx-valid-dim/40 border border-nyx-valid/25 text-nyx-valid;
 }
 
 @utility status-broken {
-  @apply bg-nyx-broken-dim/30 border border-nyx-broken/30 text-nyx-broken;
+  @apply bg-nyx-broken-dim/40 border border-nyx-broken/25 text-nyx-broken;
+}
+
+/* Glows — raw CSS only */
+@utility glow-gold {
+  box-shadow: 0 0 28px rgba(201,168,76,0.32), 0 0 56px rgba(201,168,76,0.12);
+}
+
+@utility glow-accent {
+  box-shadow: 0 0 28px rgba(201,168,76,0.28), 0 0 56px rgba(201,168,76,0.10);
+}
+
+@utility glow-valid {
+  box-shadow: 0 0 22px rgba(39,201,127,0.30), 0 0 44px rgba(39,201,127,0.10);
+}
+
+@utility glow-broken {
+  box-shadow: 0 0 26px rgba(224,48,80,0.42),  0 0 52px rgba(224,48,80,0.18);
+}
+
+/* Gold shimmer — raw CSS only */
+@utility gold-shimmer {
+  background: linear-gradient(90deg, #C9A84C 0%, #E8D06A 38%, #C9A84C 62%, #A07830 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nyx-shimmer 4s linear infinite;
+}
+
+/* Animations */
+@utility pulse-valid  { animation: nyx-pulse-valid  2.0s ease-in-out infinite; }
+@utility pulse-broken { animation: nyx-pulse-broken 1.4s ease-in-out infinite; }
+@utility pulse-gold   { animation: nyx-pulse-gold   2.5s ease-in-out infinite; }
+@utility animate-feed-in { animation: nyx-feed-in 0.22s ease-out both; }
+@utility animate-fade-up { animation: nyx-fade-up 0.50s ease-out both; }
+@utility animate-float   { animation: nyx-float   5.0s ease-in-out infinite; }
+
+/* ─── Keyframes ──────────────────────────────────────────────── */
+
+@keyframes nyx-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
 
 @keyframes nyx-pulse-valid {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
-    opacity: 1;
-  }
-  50% {
-    box-shadow: 0 0 20px 4px rgba(34, 197, 94, 0.35);
-    opacity: 0.85;
-  }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(39,201,127,0.55); opacity: 1; }
+  50%       { box-shadow: 0 0 18px 4px rgba(39,201,127,0.28); opacity: 0.85; }
 }
 
 @keyframes nyx-pulse-broken {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
-    opacity: 1;
-  }
-  50% {
-    box-shadow: 0 0 24px 6px rgba(239, 68, 68, 0.45);
-    opacity: 0.85;
-  }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224,48,80,0.60); opacity: 1; }
+  50%       { box-shadow: 0 0 22px 6px rgba(224,48,80,0.38); opacity: 0.85; }
 }
 
-@utility pulse-valid {
-  animation: nyx-pulse-valid 2s ease-in-out infinite;
+@keyframes nyx-pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.45); opacity: 1; }
+  50%       { box-shadow: 0 0 20px 5px rgba(201,168,76,0.22); opacity: 0.85; }
 }
 
-@utility pulse-broken {
-  animation: nyx-pulse-broken 1.5s ease-in-out infinite;
+@keyframes nyx-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nyx-feed-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nyx-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes nyx-scan-down {
+  0%   { top: -2px; opacity: 0; }
+  5%   { opacity: 0.7; }
+  95%  { opacity: 0.4; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes nyx-flow-h {
+  0%   { transform: translateX(-200%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(400%); opacity: 0; }
+}
+
+@keyframes nyx-flow-v {
+  0%   { transform: translateY(-200%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+
+@keyframes nyx-breach-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(224,48,80,0); }
+  30%  { box-shadow: 0 0 48px 16px rgba(224,48,80,0.55); }
+  100% { box-shadow: 0 0 16px 4px rgba(224,48,80,0.15); }
+}
+
+/* ─── Plain CSS components ───────────────────────────────────── */
+
+.nyx-scan-line {
+  position: absolute;
+  inset-x: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201,168,76,0.3) 30%,
+    rgba(201,168,76,0.6) 50%,
+    rgba(201,168,76,0.3) 70%,
+    transparent 100%
+  );
+  animation: nyx-scan-down 9s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nyx-flow-dot-h { animation: nyx-flow-h 2.2s linear infinite; }
+.nyx-flow-dot-v { animation: nyx-flow-v 2.2s linear infinite; }
+
+.nyx-breach { animation: nyx-breach-flash 0.8s ease-out forwards; }
+
+/* Royal corner brackets */
+.corner-mark-tl,
+.corner-mark-tr,
+.corner-mark-bl,
+.corner-mark-br {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.corner-mark-tl { top: 4px;    left: 4px;    border-top:    1px solid; border-left:   1px solid; }
+.corner-mark-tr { top: 4px;    right: 4px;   border-top:    1px solid; border-right:  1px solid; }
+.corner-mark-bl { bottom: 4px; left: 4px;    border-bottom: 1px solid; border-left:   1px solid; }
+.corner-mark-br { bottom: 4px; right: 4px;   border-bottom: 1px solid; border-right:  1px solid; }
+
+/* Ornamental gold ruled separator */
+.royal-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.royal-rule::before,
+.royal-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201,168,76,0.35), transparent);
 }

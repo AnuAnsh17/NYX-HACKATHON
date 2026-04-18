@@ -6,41 +6,92 @@ import { tamperBlock, type VerifyResult } from "@/lib/api";
 import { useChainStatus } from "@/hooks/useChainStatus";
 import { useSSE } from "@/hooks/useSSE";
 
-const CASCADE_STEP_MS = 150;
+const CASCADE_STEP_MS = 160;
+const REFRESH_DEBOUNCE_MS = 1000;
 
 function truncHash(h: string): string {
   if (!h) return "";
-  return h.length <= 16 ? h : h.slice(0, 16) + "…";
+  return h.length <= 18 ? h : h.slice(0, 10) + "…" + h.slice(-6);
 }
 
 function fmtTs(iso: string): string {
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-    const time = d.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    return `${date} · ${time}`;
+    return (
+      d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) +
+      " · " +
+      d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+    );
   } catch {
     return iso;
   }
+}
+
+function CornerMarks({ color }: { color: string }) {
+  const s = { borderColor: color };
+  return (
+    <>
+      <span className="corner-mark-tl" style={s} />
+      <span className="corner-mark-tr" style={s} />
+      <span className="corner-mark-bl" style={s} />
+      <span className="corner-mark-br" style={s} />
+    </>
+  );
+}
+
+function BlockConnector({ targetBroken }: { targetBroken: boolean }) {
+  return (
+    <div
+      className="flex-shrink-0 flex items-center mt-10"
+      style={{ width: "40px" }}
+    >
+      {/* Line */}
+      <div
+        className="relative flex-1 overflow-hidden"
+        style={{
+          height: "1px",
+          background: targetBroken
+            ? "rgba(255,45,85,0.3)"
+            : "rgba(0,212,176,0.2)",
+        }}
+      >
+        {!targetBroken && (
+          <div
+            className="absolute nyx-flow-dot-h"
+            style={{
+              top: "-2px",
+              width: "10px",
+              height: "5px",
+              borderRadius: "999px",
+              background: "rgba(0,212,176,0.7)",
+            }}
+          />
+        )}
+      </div>
+      {/* Arrow tip */}
+      <svg width="6" height="10" viewBox="0 0 6 10" fill="none" style={{ flexShrink: 0 }}>
+        <path
+          d="M0 0 L6 5 L0 10"
+          stroke={targetBroken ? "rgba(255,45,85,0.3)" : "rgba(0,212,176,0.35)"}
+          strokeWidth="1.2"
+        />
+      </svg>
+    </div>
+  );
 }
 
 function SkeletonCard() {
   return (
     <div className="w-72 flex-shrink-0 rounded-sm p-5 bg-nyx-card border border-nyx-border animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-2.5 bg-nyx-wire rounded w-20" />
-        <div className="h-2.5 bg-nyx-wire rounded w-12" />
+        <div className="h-2 bg-nyx-wire rounded w-20" />
+        <div className="h-2 bg-nyx-wire rounded w-12" />
       </div>
-      <div className="h-2 bg-nyx-wire rounded w-36 mb-4" />
-      <div className="h-12 bg-nyx-wire/70 rounded mb-3" />
-      <div className="h-2 bg-nyx-wire rounded w-40 mb-2" />
-      <div className="h-2 bg-nyx-wire rounded w-32" />
+      <div className="h-1.5 bg-nyx-wire rounded w-36 mb-4" />
+      <div className="h-12 bg-nyx-wire/50 rounded mb-3" />
+      <div className="h-1.5 bg-nyx-wire rounded w-40 mb-2" />
+      <div className="h-1.5 bg-nyx-wire rounded w-28" />
     </div>
   );
 }
@@ -52,21 +103,22 @@ export function ChainViewer() {
   const [renderBroken, setRenderBroken] = useState<Set<number>>(new Set());
   const [verifying, setVerifying] = useState(false);
 
-  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const prevChainLenRef = useRef(0);
-  const prevBrokenRef = useRef<Set<number>>(new Set());
-  const hasChainLoadedRef = useRef(false);
-  const hasVerificationLoadedRef = useRef(false);
+  const refreshDebounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRefs            = useRef<Map<number, HTMLDivElement>>(new Map());
+  const scrollContainerRef  = useRef<HTMLDivElement>(null);
+  const prevChainLenRef     = useRef(0);
+  const prevBrokenRef       = useRef<Set<number>>(new Set());
+  const hasChainLoadedRef   = useRef(false);
+  const hasVerifLoadedRef   = useRef(false);
 
-  // SSE fires → pull chain + verify immediately
+  // SSE → debounced refresh (max once per second)
   useEffect(() => {
-    if (sseEvents.length > 0) {
-      refresh();
-    }
+    if (sseEvents.length === 0) return;
+    if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
+    refreshDebounceRef.current = setTimeout(() => { refresh(); }, REFRESH_DEBOUNCE_MS);
   }, [sseEvents.length, refresh]);
 
-  // New block animation (slide-in from right + green glow)
+  // New block: slide in from right + brief green glow
   useEffect(() => {
     if (!hasChainLoadedRef.current && chain.length > 0) {
       hasChainLoadedRef.current = true;
@@ -75,23 +127,14 @@ export function ChainViewer() {
     }
     if (chain.length > prevChainLenRef.current) {
       for (let i = prevChainLenRef.current; i < chain.length; i++) {
-        const block = chain[i];
-        const el = cardRefs.current.get(block.index);
+        const el = cardRefs.current.get(chain[i].index);
         if (!el) continue;
+        gsap.fromTo(el, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power2.out" });
         gsap.fromTo(
           el,
-          { x: 80, opacity: 0 },
-          { x: 0, opacity: 1, duration: 0.5, ease: "power2.out" }
-        );
-        gsap.fromTo(
-          el,
-          { boxShadow: "0 0 24px 6px rgba(34,197,94,0.55)" },
-          {
-            boxShadow: "0 0 0 0 rgba(34,197,94,0)",
-            duration: 1.4,
-            delay: 0.25,
-            ease: "power2.out",
-          }
+          { boxShadow: "0 0 0 0 rgba(0,224,127,0)" },
+          { boxShadow: "0 0 28px 8px rgba(0,224,127,0.45)", duration: 0.35, delay: 0.1, ease: "power3.out",
+            onComplete: () => gsap.to(el, { boxShadow: "0 0 0 0 rgba(0,224,127,0)", duration: 0.8, ease: "power2.out" }) }
         );
       }
       const sc = scrollContainerRef.current;
@@ -100,28 +143,22 @@ export function ChainViewer() {
     prevChainLenRef.current = chain.length;
   }, [chain]);
 
-  // Cascade: stagger broken-state application + shake per card
+  // Cascade: stagger broken state + dramatic glow+shake per card
   useEffect(() => {
     if (!verification) return;
 
     const brokenNow = new Set<number>();
-    verification.blocks.forEach((b) => {
-      if (b.status === "BROKEN") brokenNow.add(b.index);
-    });
+    verification.blocks.forEach((b) => { if (b.status === "BROKEN") brokenNow.add(b.index); });
 
-    if (!hasVerificationLoadedRef.current) {
-      hasVerificationLoadedRef.current = true;
+    if (!hasVerifLoadedRef.current) {
+      hasVerifLoadedRef.current = true;
       prevBrokenRef.current = brokenNow;
       setRenderBroken(brokenNow);
       return;
     }
 
-    const newlyBroken = [...brokenNow]
-      .filter((i) => !prevBrokenRef.current.has(i))
-      .sort((a, b) => a - b);
-    const noLongerBroken = [...prevBrokenRef.current].filter(
-      (i) => !brokenNow.has(i)
-    );
+    const newlyBroken    = [...brokenNow].filter((i) => !prevBrokenRef.current.has(i)).sort((a, b) => a - b);
+    const noLongerBroken = [...prevBrokenRef.current].filter((i) => !brokenNow.has(i));
 
     if (noLongerBroken.length > 0) {
       setRenderBroken((prev) => {
@@ -132,84 +169,77 @@ export function ChainViewer() {
     }
 
     prevBrokenRef.current = brokenNow;
-
     if (newlyBroken.length === 0) return;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     newlyBroken.forEach((idx, i) => {
       const t = setTimeout(() => {
-        setRenderBroken((prev) => {
-          const next = new Set(prev);
-          next.add(idx);
-          return next;
-        });
+        setRenderBroken((prev) => { const next = new Set(prev); next.add(idx); return next; });
         const el = cardRefs.current.get(idx);
         if (el) {
-          gsap.fromTo(
-            el,
-            { x: 0 },
-            {
-              keyframes: { x: [-6, 6, -4, 4, 0] },
-              duration: 0.36,
-              ease: "power1.inOut",
-            }
-          );
+          // Dramatic: glow expansion + shake
+          const tl = gsap.timeline();
+          tl.fromTo(el,
+            { boxShadow: "0 0 0 0 rgba(255,45,85,0)" },
+            { boxShadow: "0 0 48px 16px rgba(255,45,85,0.55)", duration: 0.22, ease: "power3.out" }
+          )
+          .to(el, { keyframes: { x: [-7, 7, -5, 5, -3, 3, 0] }, duration: 0.4, ease: "power1.inOut" }, "<0.05")
+          .to(el, { boxShadow: "0 0 16px 4px rgba(255,45,85,0.15)", duration: 0.7, ease: "power2.out" });
         }
       }, i * CASCADE_STEP_MS);
       timers.push(t);
     });
 
-    return () => {
-      timers.forEach((t) => clearTimeout(t));
-    };
+    return () => timers.forEach(clearTimeout);
   }, [verification]);
 
-  const handleTamper = useCallback(
-    async (index: number) => {
-      if (!window.confirm(`This will corrupt Block #${index}. Continue?`))
-        return;
-      try {
-        await tamperBlock(index);
-        await refresh();
-      } catch (e) {
-        alert(e instanceof Error ? e.message : "Tamper failed");
-      }
-    },
-    [refresh]
-  );
+  const handleTamper = useCallback(async (index: number) => {
+    if (!window.confirm(`Corrupt Block #${index}? This demonstrates tamper detection.`)) return;
+    try {
+      await tamperBlock(index);
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Tamper failed");
+    }
+  }, [refresh]);
 
   const handleVerify = useCallback(async () => {
     setVerifying(true);
-    try {
-      await refresh();
-    } finally {
-      setVerifying(false);
-    }
+    try { await refresh(); } finally { setVerifying(false); }
   }, [refresh]);
 
   const verifyResultFor = (index: number): VerifyResult | null =>
     verification?.blocks.find((b) => b.index === index) ?? null;
 
-  const allValid = renderBroken.size === 0;
+  const allValid   = renderBroken.size === 0;
   const showSkeleton = loading && chain.length === 0;
 
   return (
-    <section className="py-12 bg-nyx-dark">
+    <section
+      id="chain"
+      className="py-14"
+      style={{
+        background:
+          "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(13,10,36,0.95) 0%, rgba(6,4,16,0.98) 100%)",
+      }}
+    >
       <div className="max-w-7xl mx-auto px-6">
+
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <span className="mono-label text-nyx-accent">CHAIN EXPLORER</span>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-8">
+          <div className="flex items-center gap-4">
+            <span className="mono-label text-nyx-accent">CHAIN EXPLORER</span>
+            <span className="mono-label text-nyx-dim">
+              {chain.length.toLocaleString()} BLOCKS
+            </span>
+          </div>
 
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-sm ${
               allValid ? "status-valid" : "status-broken pulse-broken"
             }`}
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                allValid ? "bg-nyx-valid" : "bg-nyx-broken"
-              }`}
-            />
+            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${allValid ? "bg-nyx-valid" : "bg-nyx-broken"}`} />
             <span className="mono-label">
               {allValid ? "CHAIN INTEGRITY: VALID" : "INTEGRITY BREACH DETECTED"}
             </span>
@@ -219,43 +249,28 @@ export function ChainViewer() {
             <button
               onClick={() => refresh()}
               disabled={loading}
-              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-text hover:border-nyx-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-text hover:border-nyx-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               REFRESH
             </button>
             <button
               onClick={handleVerify}
               disabled={verifying}
-              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-text hover:border-nyx-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+              className="mono-label px-3 py-1.5 border border-nyx-wire text-nyx-muted rounded-sm hover:text-nyx-accent hover:border-nyx-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
             >
               {verifying && (
-                <svg
-                  className="animate-spin h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              {verifying ? "VERIFYING…" : "VERIFY"}
+              {verifying ? "VERIFYING…" : "VERIFY CHAIN"}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="mt-4 px-4 py-3 border border-nyx-broken/30 bg-nyx-broken-dim/10 text-nyx-broken text-sm rounded-sm font-mono">
+          <div className="mb-6 px-4 py-3 border border-nyx-broken/30 bg-nyx-broken-dim/10 text-nyx-broken text-xs font-mono rounded-sm">
             {error}
           </div>
         )}
@@ -263,98 +278,115 @@ export function ChainViewer() {
         {/* Block scroll area */}
         <div
           ref={scrollContainerRef}
-          className="mt-8 flex gap-4 overflow-x-auto pb-4"
-          style={{ scrollbarWidth: "thin" }}
+          className="flex items-start overflow-x-auto pb-4"
+          style={{ scrollbarWidth: "thin", gap: 0 }}
         >
           {showSkeleton && (
             <>
               <SkeletonCard />
+              <div style={{ width: 40 }} className="flex-shrink-0" />
               <SkeletonCard />
+              <div style={{ width: 40 }} className="flex-shrink-0" />
               <SkeletonCard />
             </>
           )}
 
           {!showSkeleton && chain.length === 0 && (
-            <div className="mono-label text-nyx-dim py-8">
-              No blocks yet. Start the simulator to begin ingesting events.
+            <div className="flex flex-col items-center justify-center w-full py-20 gap-3">
+              <div className="mono-label text-nyx-dim">NO BLOCKS IN CHAIN</div>
+              <p className="text-sm text-nyx-muted/60">
+                Run the simulator or append an event to begin.
+              </p>
             </div>
           )}
 
-          {chain.map((block) => {
+          {chain.map((block, i) => {
             const isBroken = renderBroken.has(block.index);
-            const vr = verifyResultFor(block.index);
+            const vr       = verifyResultFor(block.index);
             const isGenesis = block.index === 0;
-            const prevHashDisplay = isGenesis
-              ? "0000...0000"
-              : truncHash(block.prev_hash);
+            const nextBroken = i < chain.length - 1 && renderBroken.has(chain[i + 1].index);
 
             return (
-              <div
-                key={block.index}
-                ref={(el) => {
-                  if (el) cardRefs.current.set(block.index, el);
-                  else cardRefs.current.delete(block.index);
-                }}
-                className={`w-72 flex-shrink-0 rounded-sm p-5 relative transition-colors duration-300 ${
-                  isBroken
-                    ? "bg-nyx-broken-dim/10 border border-nyx-broken/40"
-                    : "bg-nyx-card border border-nyx-valid/20"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="mono-label text-nyx-silver">
-                    {isGenesis ? "GENESIS" : `BLOCK #${block.index}`}
-                  </span>
-                  <span
-                    className={`mono-label px-2 py-0.5 rounded-sm ${
-                      isBroken
-                        ? "bg-nyx-broken/20 text-nyx-broken"
-                        : "bg-nyx-valid/20 text-nyx-valid"
-                    }`}
-                  >
-                    {isBroken ? "BROKEN" : "VALID"}
-                  </span>
-                </div>
+              <div key={block.index} className="flex items-start flex-shrink-0">
+                {/* Evidence card */}
+                <div
+                  ref={(el) => {
+                    if (el) cardRefs.current.set(block.index, el);
+                    else cardRefs.current.delete(block.index);
+                  }}
+                  className="relative w-72 flex-shrink-0 rounded-sm p-5 transition-all duration-300"
+                  style={
+                    isBroken
+                      ? { background: "rgba(30,6,16,0.75)", border: "1px solid rgba(224,48,80,0.38)", backdropFilter: "blur(20px)" }
+                      : { background: "rgba(13,10,36,0.70)", border: "1px solid rgba(201,168,76,0.16)", backdropFilter: "blur(20px)" }
+                  }
+                >
+                  <CornerMarks color={isBroken ? "#E03050" : "#C9A84C"} />
 
-                <div className="mono-label text-nyx-dim mt-2 truncate">
-                  {fmtTs(block.timestamp)}
-                </div>
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="mono-label text-nyx-silver">
+                      {isGenesis ? "GENESIS" : `BLOCK #${String(block.index).padStart(3, "0")}`}
+                    </span>
+                    <span
+                      className={`mono-label px-2 py-0.5 rounded-sm ${
+                        isBroken ? "bg-nyx-broken/15 text-nyx-broken" : "bg-nyx-valid/10 text-nyx-valid"
+                      }`}
+                    >
+                      {isBroken ? "BROKEN" : "VALID"}
+                    </span>
+                  </div>
 
-                <div className="font-mono text-xs text-nyx-text mt-3 p-3 bg-nyx-black/50 rounded-sm break-all">
-                  {block.data}
-                </div>
+                  <div className="mono-label text-nyx-dim mb-3 truncate">
+                    {fmtTs(block.timestamp)}
+                  </div>
 
-                <div className="mono-label text-nyx-dim mt-3 truncate">
-                  HASH: {truncHash(block.hash)}
-                </div>
-                <div className="mono-label text-nyx-dim mt-1 truncate">
-                  PREV: {prevHashDisplay}
-                </div>
+                  {/* Data payload */}
+                  <div className="font-mono text-xs text-nyx-text bg-nyx-black/60 rounded-sm p-3 break-all leading-relaxed mb-3">
+                    {block.data}
+                  </div>
 
-                {isBroken && vr && (
-                  <div className="mt-3 pt-3 border-t border-nyx-broken/20 space-y-1">
-                    <div className="font-mono text-[10px] break-all">
-                      <span className="text-nyx-dim">EXPECTED: </span>
-                      <span className="text-nyx-valid">
-                        {truncHash(vr.expected_hash)}
-                      </span>
+                  {/* Hashes */}
+                  <div className="space-y-1">
+                    <div className="font-mono text-[10px] text-nyx-dim truncate">
+                      <span className="text-nyx-wire">HASH&nbsp;</span>
+                      {truncHash(block.hash)}
                     </div>
-                    <div className="font-mono text-[10px] break-all">
-                      <span className="text-nyx-dim">STORED: </span>
-                      <span className="text-nyx-broken">
-                        {truncHash(vr.stored_hash)}
-                      </span>
+                    <div className="font-mono text-[10px] text-nyx-dim truncate">
+                      <span className="text-nyx-wire">PREV&nbsp;</span>
+                      {isGenesis ? "0000000000000000" : truncHash(block.prev_hash)}
                     </div>
                   </div>
-                )}
 
-                {!isGenesis && (
-                  <button
-                    onClick={() => handleTamper(block.index)}
-                    className="mt-4 w-full text-nyx-broken/60 text-[10px] mono-label border border-nyx-broken/20 rounded-sm py-1.5 hover:bg-nyx-broken/10 hover:text-nyx-broken transition-colors"
-                  >
-                    ⚠ TAMPER
-                  </button>
+                  {/* Forensic evidence — hash mismatch detail */}
+                  {isBroken && vr && (
+                    <div className="mt-3 pt-3 border-t border-nyx-broken/20 space-y-1.5">
+                      <div className="mono-label text-nyx-broken/70 mb-1.5">HASH MISMATCH</div>
+                      <div className="font-mono text-[10px] break-all">
+                        <span className="text-nyx-dim">EXPECTED&nbsp;</span>
+                        <span className="text-nyx-valid">{truncHash(vr.expected_hash)}</span>
+                      </div>
+                      <div className="font-mono text-[10px] break-all">
+                        <span className="text-nyx-dim">STORED&nbsp;&nbsp;&nbsp;</span>
+                        <span className="text-nyx-broken">{truncHash(vr.stored_hash)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tamper button */}
+                  {!isGenesis && (
+                    <button
+                      onClick={() => handleTamper(block.index)}
+                      className="mt-4 w-full mono-label py-1.5 border border-nyx-broken/20 text-nyx-broken/50 rounded-sm hover:bg-nyx-broken/8 hover:text-nyx-broken hover:border-nyx-broken/40 transition-colors duration-200"
+                    >
+                      TAMPER BLOCK
+                    </button>
+                  )}
+                </div>
+
+                {/* Connector to next block */}
+                {i < chain.length - 1 && (
+                  <BlockConnector targetBroken={nextBroken} />
                 )}
               </div>
             );
