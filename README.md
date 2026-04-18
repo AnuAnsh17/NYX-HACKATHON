@@ -47,20 +47,20 @@ Each block's hash commits to the previous block. Modify any stored field and the
          ┌───────────────────────────────────────────────┐
          │  Frontend (HTML + Vanilla JS + Chart.js)      │
          │  /         — Mission Control Dashboard        │
-         │  /reports  — Forensic Evidence Review          │
+         │  /reports  — Forensic Evidence Review         │
          └──────────────┬────────────────────────────────┘
                         │  HTTP + SSE (text/event-stream)
                         ▼
   ┌─────────────────────────────────────────────────────────────┐
   │  main.go  —  net/http mux, graceful shutdown (SIGINT)       │
   │                                                             │
-  │  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
-  │  │   api/       │   │   chain/     │   │   verifier/    │  │
-  │  │  handlers    │──▶│  Block       │◀──│  per-block     │  │
-  │  │  SSE hub     │   │  Chain       │   │  VALID/BROKEN  │  │
-  │  │  routes      │   │  ComputeHash │   │                │  │
-  │  │  simulate    │   │  Reset       │   │                │  │
-  │  └──────────────┘   └──────────────┘   └────────────────┘  │
+  │  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐   │
+  │  │   api/       │   │   chain/     │   │   verifier/    │   │
+  │  │  handlers    │──▶│  Block       │◀──│  per-block    │   │
+  │  │  SSE hub     │   │  Chain       │   │  VALID/BROKEN  │   │
+  │  │  routes      │   │  ComputeHash │   │                │   │
+  │  │  simulate    │   │  Reset       │   │                │   │
+  │  └──────────────┘   └──────────────┘   └────────────────┘   │
   └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -198,11 +198,11 @@ nyx-hackathon/
 
 **TEAM NYX**
 
-| Name | Role |
+| Name |
 |---|---|
-| **Anurag Yadav** | Full-Stack Development, System Architecture |
-| **Akash Jaiswal** | Backend Engineering, Cryptographic Design |
-| **Hrishabh Soni** | Frontend Development, UI/UX Design |
+| **Anurag Yadav**  | 
+| **Akash Jaiswal** | 
+| **Hrishabh Soni** | 
 
 ---
 
