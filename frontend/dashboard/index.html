@@ -289,9 +289,12 @@
     pauseScroll: false,
     selectedIndex: null,
     charts: {},
-    simMode: null,        // null | "demo" | "stress"
-    sseQueue: [],          // SSE event batch queue
+    simMode: null,           // null | "demo" | "stress"
+    simEventsReceived: 0,    // local count for progress bar
+    sseQueue: [],            // SSE event batch queue
     sseDrainTimer: null,
+    renderPending: false,    // rAF dedup flag
+    chartUpdatePending: null,// chart debounce timer
   };
 
   // ════════════ HELPERS ════════════
@@ -540,7 +543,8 @@
 
   // ════════════ INTEGRITY TIMELINE ════════════
   function renderTimeline() {
-    const recent = S.blocks.slice(-12).reverse();
+    const cap = S.simMode === "stress" ? 8 : 20;
+    const recent = S.blocks.slice(-cap).reverse();
     $("timeline").innerHTML = recent.map(b => {
       const broken = statusOf(b.index) === "BROKEN";
       return `<div class="tl-node ${broken?"broken":""}" data-idx="${b.index}">
@@ -646,7 +650,7 @@
   }
   function pushLog(text, level="") {
     S.logs.unshift({ text, level });
-    S.logs = S.logs.slice(0, 200);
+    if (S.logs.length > 100) S.logs.length = 100;
     renderAudit();
   }
   function blockToLog(b, action="SEAL") {
@@ -694,8 +698,27 @@
     renderTimeline();
     renderTable(opts);
     drawHeatmap();
-    updateCharts();
+    debouncedChartUpdate();
     animateNum($("liveCounter"), S.blocks.length);
+  }
+
+  // Schedule render via requestAnimationFrame, dedup multiple calls per frame
+  function scheduleRender(opts={}) {
+    if (S.renderPending) return;
+    S.renderPending = true;
+    requestAnimationFrame(() => {
+      S.renderPending = false;
+      fullRender(opts);
+    });
+  }
+
+  // Debounced chart updates: max 2x/sec
+  function debouncedChartUpdate() {
+    if (S.chartUpdatePending) return;
+    S.chartUpdatePending = setTimeout(() => {
+      S.chartUpdatePending = null;
+      updateCharts();
+    }, 500);
   }
 
   // ════════════ TICK (1s) ════════════
@@ -772,14 +795,11 @@
       es.onmessage = e => {
         try {
           const b = JSON.parse(e.data);
-          // Batch mode: queue events and drain on interval
-          if (S.simMode === "stress") {
-            S.sseQueue.push(b);
-            if (!S.sseDrainTimer) {
-              S.sseDrainTimer = setInterval(drainSSEQueue, 100);
-            }
-          } else {
-            ingestBlock(b);
+          // Always queue; drain on interval for smooth batching
+          S.sseQueue.push(b);
+          if (!S.sseDrainTimer) {
+            const interval = S.simMode === "stress" ? 150 : 100;
+            S.sseDrainTimer = setInterval(drainSSEQueue, interval);
           }
         } catch {}
       };
@@ -792,11 +812,13 @@
   // ════════════ SSE BATCH DRAIN ════════════
   function drainSSEQueue() {
     if (S.sseQueue.length === 0) {
-      // If queue empty for a while, check if stress is done
+      // Stop draining when idle — will restart on next SSE message
+      clearInterval(S.sseDrainTimer);
+      S.sseDrainTimer = null;
       return;
     }
-    // Process batch: ingest all queued, render once
     const batch = S.sseQueue.splice(0, S.sseQueue.length);
+    let newCount = 0;
     for (const b of batch) {
       if (S.blocks.some(x => x.index === b.index)) continue;
       S.blocks.push(b);
@@ -806,18 +828,29 @@
       const nowSec = Math.floor(Date.now()/1000);
       const idx = nowSec - S.rateBucketStart;
       if (idx >= 0 && idx < RATE_BUCKETS) S.rateBuckets[idx]++;
+      newCount++;
     }
+    if (newCount === 0) return;
     if (S.eventTimes.length > 200) S.eventTimes = S.eventTimes.slice(-200);
     S.blocks.sort((a,b) => a.index - b.index);
-    // Log summary instead of individual lines
-    pushLog(`${tsFmt(new Date())}  BATCH    ${batch.length} events ingested  chain #${S.blocks.length - 1}`);
-    fullRender();
-    // Update stress bar progress (estimate: 3000 target)
-    const stressTarget = 3000;
-    const chainLen = S.blocks.length;
-    const pct = Math.min(100, ((chainLen / stressTarget) * 100));
-    const fill = $("stressBarFill");
-    if (fill) fill.style.width = pct + "%";
+
+    // Track simulation progress locally
+    if (S.simMode) S.simEventsReceived += newCount;
+
+    // In stress mode: log summary, update progress bar
+    if (S.simMode === "stress") {
+      pushLog(`${tsFmt(new Date())}  BATCH    ${newCount} events ingested  chain #${S.blocks.length - 1}`);
+      const pct = Math.min(100, (S.simEventsReceived / 1500) * 100);
+      const fill = $("stressBarFill");
+      if (fill) fill.style.width = pct + "%";
+    } else {
+      // In demo/normal mode: log individual newest block
+      const last = batch[batch.length - 1];
+      if (last) pushLog(blockToLog(last));
+    }
+
+    // One batched render via rAF
+    scheduleRender();
   }
 
   function stopSSEBatching() {
@@ -938,6 +971,7 @@
   // ════════════ SIMULATION ════════════
   function setSimMode(mode) {
     S.simMode = mode;
+    S.simEventsReceived = 0;
     const badge = $("simStatus");
     const body = document.body;
     const demoBtn = $("demoBtn");
@@ -968,14 +1002,18 @@
       badge.classList.add("stress");
       badge.textContent = "\u26A1 HIGH THROUGHPUT MODE \u2014 processing events...";
       body.classList.add("stress-mode");
-      // Stress finishes in ~5-10s, poll chain length to detect end
+      // Poll for completion: queue empty + drain timer stopped
       const pollEnd = setInterval(() => {
-        // If queue is empty and no new events for 2s, assume done
-        if (S.sseQueue.length === 0 && S.sseDrainTimer) {
+        if (S.sseQueue.length === 0 && !S.sseDrainTimer && S.simEventsReceived > 0) {
           clearInterval(pollEnd);
-          setTimeout(() => setSimMode(null), 1500);
+          setTimeout(() => setSimMode(null), 1000);
         }
-      }, 2000);
+      }, 1500);
+      // Hard safety timeout: always exit stress after 30s
+      setTimeout(() => {
+        clearInterval(pollEnd);
+        if (S.simMode === "stress") setSimMode(null);
+      }, 30000);
     }
   }
 

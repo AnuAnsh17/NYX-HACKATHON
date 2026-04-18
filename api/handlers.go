@@ -226,16 +226,16 @@ func (h *Handler) runDemo() {
 func (h *Handler) runStress() {
 	defer h.simRunning.Store(false)
 
-	count := 3000
+	count := 1500
 	for i := 0; i < count; i++ {
 		data := fmt.Sprintf("STRESS:event_%d_%d", i, time.Now().UnixNano())
 		block := h.chain.Append(data)
 		if bs, err := json.Marshal(block); err == nil {
 			h.broadcaster.Publish(string(bs))
 		}
-		// tiny yield to prevent total CPU starvation
-		if i%50 == 0 {
-			time.Sleep(time.Millisecond)
+		// yield every 100 events to prevent CPU starvation
+		if i%100 == 0 {
+			time.Sleep(2 * time.Millisecond)
 		}
 	}
 }

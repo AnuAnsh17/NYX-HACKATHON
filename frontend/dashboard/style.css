@@ -1091,6 +1091,14 @@ body.stress-mode .dot { animation: none !important; }
 body.stress-mode .row-new { animation: none !important; }
 body.stress-mode .dot-flash { animation: none !important; }
 body.stress-mode .node-new { animation: none !important; }
+body.stress-mode .ring-figure { animation: none !important; }
+body.stress-mode .status-pill.bad { animation: none !important; }
+body.stress-mode .live-badge::before { animation: none !important; }
+body.stress-mode .nav-item.active::before { animation: none !important; }
+body.stress-mode .evidence-table tbody tr { transition: none !important; }
+body.stress-mode body::after { animation: none !important; }
+body.stress-mode .ring-svg .ring-glow { filter: none !important; }
+body.stress-mode .log-line { animation: none !important; }
 
 
 .hash-cell code { position: relative; cursor: default; }
