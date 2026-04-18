@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCL // Forensic Evidence Review</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════
+       DCL FORENSIC REPORT — DESIGN TOKENS
+       ═══════════════════════════════════════════════ */
+    :root {
+      --bg-base: #050507;
+      --bg-deep: #030308;
+      --bg-panel: #0a0a10;
+      --bg-elev: #11121a;
+      --border: #181a24;
+      --border-strong: #252836;
+      --border-soft: #12131c;
+      --text: #e8e9ee;
+      --text-dim: #7a7d8c;
+      --text-muted: #555868;
+      --text-faint: #3a3d4a;
+      --accent: #14b8a6;
+      --accent-bright: #2dd4bf;
+      --accent-soft: rgba(20, 184, 166, 0.14);
+      --accent-glow: rgba(20, 184, 166, 0.30);
+      --good: #22c55e;
+      --good-soft: rgba(34, 197, 94, 0.14);
+      --good-glow: rgba(34, 197, 94, 0.30);
+      --bad: #ef4444;
+      --bad-soft: rgba(239, 68, 68, 0.14);
+      --bad-glow: rgba(239, 68, 68, 0.40);
+      --warn: #f59e0b;
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-base);
+      color: var(--text);
+      font: 14px/1.65 Inter, system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    code, .mono {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ═══════  LAYOUT  ═══════ */
+    .report-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* ═══════  TOP BAR  ═══════ */
+    .report-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(180deg, var(--bg-deep), var(--bg-panel));
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .report-topbar::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+    }
+    .topbar-left {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .topbar-mark {
+      width: 24px; height: 24px;
+      border: 1px solid var(--accent);
+      background: var(--accent-soft);
+      position: relative;
+    }
+    .topbar-mark::before, .topbar-mark::after {
+      content: ""; position: absolute; background: var(--accent);
+    }
+    .topbar-mark::before { left: 3px; right: 3px; top: 50%; height: 1px; }
+    .topbar-mark::after { top: 3px; bottom: 3px; left: 50%; width: 1px; }
+    .topbar-brand {
+      font-weight: 600; font-size: 12px;
+      letter-spacing: 0.06em;
+    }
+    .topbar-sub {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9.5px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .topbar-right {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .topbar-back {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      padding: 5px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 160ms var(--ease);
+    }
+    .topbar-back:hover {
+      color: var(--accent); border-color: var(--accent);
+    }
+
+    /* ═══════  HEADER  ═══════ */
+    .report-header {
+      padding: 48px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+    .report-type {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .report-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .report-title.compromised { color: var(--bad); }
+    .report-meta {
+      display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .meta-item {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+    .meta-item strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ═══════  SECTIONS  ═══════ */
+    .section {
+      margin-bottom: 40px;
+    }
+    .section-label {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9.5px;
+      color: var(--text-muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    /* ═══════  SUMMARY GRID  ═══════ */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .summary-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px 18px;
+    }
+    .summary-card-label {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .summary-card-value {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .summary-card-sub {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      letter-spacing: 0.04em;
+    }
+    .v-good { color: var(--good); }
+    .v-bad { color: var(--bad); }
+    .v-accent { color: var(--accent); }
+    .v-warn { color: var(--warn); }
+
+    /* ═══════  CHAIN VISUAL  ═══════ */
+    .chain-visual {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      overflow-x: auto;
+    }
+    .chain-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: max-content;
+    }
+    .chain-block {
+      width: 36px; height: 36px;
+      border: 1px solid var(--good);
+      background: var(--good-soft);
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--good);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .chain-block.broken {
+      border-color: var(--bad);
+      background: var(--bad-soft);
+      color: var(--bad);
+      box-shadow: 0 0 10px var(--bad-glow);
+    }
+    .chain-block.genesis {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .chain-link {
+      width: 16px; height: 2px;
+      background: var(--good);
+      opacity: 0.4;
+      flex-shrink: 0;
+    }
+    .chain-link.broken {
+      background: var(--bad);
+      opacity: 0.8;
+      height: 2px;
+      background-image: repeating-linear-gradient(
+        90deg, var(--bad) 0px, var(--bad) 4px, transparent 4px, transparent 8px
+      );
+      background-color: transparent;
+    }
+    .chain-break-marker {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 8px;
+      color: var(--bad);
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .chain-overflow {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: var(--text-faint);
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+
+    /* ═══════  ANALYSIS BOX  ═══════ */
+    .analysis-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--bad);
+      border-radius: 4px;
+      padding: 20px 24px;
+    }
+    .analysis-box.ok {
+      border-left-color: var(--good);
+    }
+    .analysis-title {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+    .analysis-text {
+      color: var(--text-dim);
+      font-size: 13.5px;
+      line-height: 1.7;
+    }
+    .analysis-text code {
+      color: var(--accent-bright);
+      font-size: 12px;
+      background: var(--bg-elev);
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+
+    /* ═══════  AFFECTED LIST  ═══════ */
+    .affected-list {
+      display: grid;
+      gap: 6px;
+    }
+    .affected-item {
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .affected-idx {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .affected-hash {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .affected-badge {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+    .affected-badge.tampered {
+      color: var(--bad);
+      background: var(--bad-soft);
+    }
+    .affected-badge.cascade {
+      color: var(--warn);
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    /* ═══════  EVIDENCE TABLE  ═══════ */
+    .evidence-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+    }
+    .evidence-tbl thead th {
+      background: var(--bg-deep);
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .evidence-tbl tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-dim);
+      vertical-align: middle;
+    }
+    .evidence-tbl tbody tr:hover {
+      background: rgba(20, 184, 166, 0.04);
+    }
+    .hash-display {
+      font-size: 10px;
+      word-break: break-all;
+      max-width: 220px;
+    }
+    .hash-match { color: var(--good); }
+    .hash-mismatch { color: var(--bad); }
+    .pill {
+      display: inline-block;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    .pill.valid { color: var(--good); background: var(--good-soft); }
+    .pill.broken { color: var(--bad); background: var(--bad-soft); }
+
+    /* ═══════  COMPLIANCE GRID  ═══════ */
+    .compliance-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .compliance-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+    }
+    .compliance-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .compliance-card-title {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .compliance-card-status {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .compliance-card-status.pass { color: var(--good); }
+    .compliance-card-status.fail { color: var(--bad); }
+    .compliance-card-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+    .compliance-bar {
+      height: 4px;
+      background: var(--bg-elev);
+      border-radius: 2px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .compliance-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 600ms var(--ease);
+    }
+    .compliance-bar-fill.pass {
+      background: linear-gradient(90deg, var(--good), var(--accent));
+    }
+    .compliance-bar-fill.fail {
+      background: linear-gradient(90deg, var(--bad), var(--warn));
+    }
+
+    /* ═══════  EXPORT  ═══════ */
+    .export-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .export-btn {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      padding: 8px 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 180ms var(--ease);
+    }
+    .export-btn:hover {
+      color: var(--accent-bright);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    /* ═══════  LOADING  ═══════ */
+    .report-loading {
+      text-align: center;
+      padding: 80px 0;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .report-loading::before {
+      content: "";
+      display: block;
+      width: 32px; height: 32px;
+      border: 2px solid var(--border-strong);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════  FOOTER  ═══════ */
+    .report-footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-soft);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      color: var(--text-faint);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* ═══════  RESPONSIVE  ═══════ */
+    @media (max-width: 768px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .compliance-grid { grid-template-columns: 1fr; }
+      .report-container { padding: 24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <header class="report-topbar">
+    <div class="topbar-left">
+      <div class="topbar-mark" aria-hidden="true"></div>
+      <div>
+        <div class="topbar-brand">DCL // DEEP COMPLIANCE LAYER</div>
+        <div class="topbar-sub">FORENSIC EVIDENCE REVIEW</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="reportTime" class="meta-item"></span>
+      <button class="topbar-back" onclick="location.href='/'">← DASHBOARD</button>
+    </div>
+  </header>
+
+  <!-- LOADING -->
+  <div id="loading" class="report-loading">FETCHING CHAIN DATA...</div>
+
+  <!-- REPORT BODY (hidden until data loads) -->
+  <div id="reportBody" class="report-container" style="display:none;">
+
+    <!-- HEADER -->
+    <div class="report-header">
+      <div class="report-type">DCL-FR-001 // Forensic Evidence Review</div>
+      <h1 id="reportTitle" class="report-title"></h1>
+      <div class="report-meta">
+        <span class="meta-item">GENERATED <strong id="genTime"></strong></span>
+        <span class="meta-item">CHAIN LENGTH <strong id="chainLen"></strong></span>
+        <span class="meta-item">HASH <strong>SHA-256</strong></span>
+        <span class="meta-item">STATUS <strong id="chainStatus"></strong></span>
+      </div>
+    </div>
+
+    <!-- §1 EXECUTIVE SUMMARY -->
+    <section class="section">
+      <div class="section-label">§1 — Executive Summary</div>
+      <div id="summaryGrid" class="summary-grid"></div>
+    </section>
+
+    <!-- §2 VISUAL CHAIN -->
+    <section class="section">
+      <div class="section-label">§2 — Chain Topology</div>
+      <div class="chain-visual">
+        <div id="chainRow" class="chain-row"></div>
+      </div>
+    </section>
+
+    <!-- §3 BREAKPOINT ANALYSIS -->
+    <section class="section" id="breakSection" style="display:none;">
+      <div class="section-label">§3 — Breakpoint Analysis</div>
+      <div id="analysisBox" class="analysis-box"></div>
+    </section>
+
+    <!-- §3-ALT ALL CLEAR -->
+    <section class="section" id="clearSection" style="display:none;">
+      <div class="section-label">§3 — Integrity Assessment</div>
+      <div class="analysis-box ok">
+        <div class="analysis-title v-good">No Integrity Violations Detected</div>
+        <div class="analysis-text">
+          All blocks in the chain have been independently verified. Each block's hash matches the expected
+          value computed from its index, data payload, timestamp, and predecessor hash. The chain is
+          <strong>cryptographically intact</strong> — no evidence of tampering, truncation, or reordering.
+        </div>
+      </div>
+    </section>
+
+    <!-- §4 AFFECTED SEGMENTS -->
+    <section class="section" id="affectedSection" style="display:none;">
+      <div class="section-label">§4 — Affected Segments</div>
+      <div id="affectedList" class="affected-list"></div>
+    </section>
+
+    <!-- §5 EVIDENCE TABLE -->
+    <section class="section">
+      <div class="section-label" id="evidenceLabel">§5 — Evidence Hash Table</div>
+      <div style="overflow-x:auto;">
+        <table class="evidence-tbl">
+          <thead><tr>
+            <th>#</th>
+            <th>Event</th>
+            <th>Stored Hash</th>
+            <th>Prev Hash</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="evidenceBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- §6 COMPLIANCE SIGNAL -->
+    <section class="section">
+      <div class="section-label" id="complianceLabel">§6 — Compliance Signal</div>
+      <div id="complianceGrid" class="compliance-grid"></div>
+    </section>
+
+    <!-- §7 EXPORT -->
+    <section class="section">
+      <div class="section-label" id="exportLabel">§7 — Export</div>
+      <div class="export-row">
+        <button class="export-btn" onclick="exportChainJSON()">↓ CHAIN JSON</button>
+        <button class="export-btn" onclick="exportVerifyJSON()">↓ VERIFICATION</button>
+        <button class="export-btn" onclick="exportReport()">↓ FULL REPORT</button>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      DCL CLEAN ROOM V1 — THIS REPORT IS AUTO-GENERATED AND DOES NOT CONSTITUTE LEGAL OPINION
+    </footer>
+  </div>
+
+<script>
+// ════════════ CONFIG ════════════
+const API = location.origin === "http://localhost:8080" ? "" : "http://localhost:8080";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const truncHash = (h, n=16) => h ? h.slice(0, n) : "—";
+const $ = id => document.getElementById(id);
+
+let chainData = [];
+let verifyData = {};
+
+async function loadData() {
+  try {
+    const [cRes, vRes] = await Promise.all([
+      fetch(API + "/chain", { cache: "no-store" }),
+      fetch(API + "/verify", { cache: "no-store" }),
+    ]);
+    chainData = await cRes.json();
+    verifyData = await vRes.json();
+    chainData.sort((a, b) => a.index - b.index);
+    renderReport();
+  } catch (e) {
+    $("loading").textContent = "FAILED TO LOAD CHAIN DATA: " + e.message;
+  }
+}
+
+function renderReport() {
+  $("loading").style.display = "none";
+  $("reportBody").style.display = "block";
+
+  const now = new Date();
+  $("reportTime").innerHTML = `${now.toISOString().replace("T", " ").slice(0, 19)} UTC`;
+  $("genTime").textContent = now.toISOString().replace("T", " ").slice(0, 19) + " UTC";
+
+  const total = chainData.length;
+  const statusMap = new Map((verifyData.blocks || []).map(b => [b.index, b.status]));
+  const isValid = !!verifyData.valid;
+  const brokenBlocks = (verifyData.blocks || []).filter(b => b.status === "BROKEN");
+  const brokenCount = brokenBlocks.length;
+  const validCount = total - brokenCount;
+  const firstBroken = brokenBlocks.length > 0 ? brokenBlocks.sort((a,b) => a.index - b.index)[0] : null;
+
+  // Header
+  $("chainLen").textContent = total;
+  if (isValid) {
+    $("reportTitle").textContent = "Chain Integrity Verified — All Blocks Valid";
+    $("chainStatus").innerHTML = '<span style="color:var(--good)">VALID</span>';
+  } else {
+    $("reportTitle").textContent = `Integrity Failure — ${brokenCount} Block${brokenCount !== 1 ? "s" : ""} Compromised`;
+    $("reportTitle").classList.add("compromised");
+    $("chainStatus").innerHTML = '<span style="color:var(--bad)">COMPROMISED</span>';
+  }
+
+  // §1 Summary
+  $("summaryGrid").innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-label">Total Blocks</div>
+      <div class="summary-card-value v-accent">${total}</div>
+      <div class="summary-card-sub">SHA-256 chain</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Valid</div>
+      <div class="summary-card-value v-good">${validCount}</div>
+      <div class="summary-card-sub">${((validCount/total)*100).toFixed(1)}% intact</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Broken</div>
+      <div class="summary-card-value ${brokenCount > 0 ? 'v-bad' : 'v-good'}">${brokenCount}</div>
+      <div class="summary-card-sub">${firstBroken ? 'first at #' + firstBroken.index : 'no violations'}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Cascade Impact</div>
+      <div class="summary-card-value ${brokenCount > 1 ? 'v-warn' : 'v-good'}">${brokenCount > 1 ? brokenCount - 1 : 0}</div>
+      <div class="summary-card-sub">${brokenCount > 1 ? 'downstream affected' : 'no cascade'}</div>
+    </div>
+  `;
+
+  // §2 Chain visual (show up to 40 blocks, then overflow indicator)
+  const maxVis = 40;
+  const showBlocks = chainData.slice(0, maxVis);
+  let chainHTML = "";
+  showBlocks.forEach((b, i) => {
+    const status = statusMap.get(b.index) || "VALID";
+    const isBroken = status === "BROKEN";
+    const isGenesis = b.index === 0;
+    let cls = isGenesis ? "genesis" : (isBroken ? "broken" : "");
+    let marker = "";
+    if (firstBroken && b.index === firstBroken.index) {
+      marker = '<span class="chain-break-marker">BREAK</span>';
+    }
+    if (i > 0) {
+      const prevStatus = statusMap.get(showBlocks[i-1].index) || "VALID";
+      const linkBroken = isBroken || prevStatus === "BROKEN";
+      chainHTML += `<div class="chain-link${linkBroken ? ' broken' : ''}"></div>`;
+    }
+    chainHTML += `<div class="chain-block ${cls}">${marker}${b.index}</div>`;
+  });
+  if (total > maxVis) {
+    chainHTML += `<span class="chain-overflow">… +${total - maxVis} more</span>`;
+  }
+  $("chainRow").innerHTML = chainHTML;
+
+  // §3 Breakpoint analysis
+  if (!isValid && firstBroken) {
+    $("breakSection").style.display = "block";
+    const fb = chainData.find(b => b.index === firstBroken.index);
+    $("analysisBox").innerHTML = `
+      <div class="analysis-title v-bad">Integrity Break at Block #${firstBroken.index}</div>
+      <div class="analysis-text">
+        The stored hash at block <code>#${firstBroken.index}</code> does not match the expected hash
+        computed from the block's payload, timestamp, and predecessor hash. This indicates the block's
+        data field was modified after initial sealing.<br><br>
+        <strong>Implication:</strong> Because each block's hash depends on its predecessor, all
+        <code>${brokenCount - 1}</code> downstream blocks (indices <code>#${firstBroken.index + 1}</code>
+        through <code>#${chainData[chainData.length - 1].index}</code>) inherit invalid lineage.
+        The chain cannot be considered cryptographically trustworthy from block
+        <code>#${firstBroken.index}</code> onward.<br><br>
+        <strong>Data at breakpoint:</strong> <code>${esc(fb ? fb.data : "—")}</code>
+      </div>
+    `;
+  } else {
+    $("clearSection").style.display = "block";
+  }
+
+  // §4 Affected segments
+  if (brokenBlocks.length > 0) {
+    $("affectedSection").style.display = "block";
+    $("affectedList").innerHTML = brokenBlocks
+      .sort((a, b) => a.index - b.index)
+      .map((bb, i) => {
+        const block = chainData.find(b => b.index === bb.index);
+        const isTampered = i === 0;
+        return `<div class="affected-item">
+          <span class="affected-idx v-bad">#${bb.index}</span>
+          <span class="affected-hash">${block ? block.hash : "—"}</span>
+          <span class="affected-badge ${isTampered ? 'tampered' : 'cascade'}">${isTampered ? 'TAMPERED' : 'CASCADE'}</span>
+        </div>`;
+      }).join("");
+  }
+
+  // §5 Evidence table (last 50 blocks, newest first)
+  const tableBlocks = [...chainData].reverse().slice(0, 50);
+  $("evidenceBody").innerHTML = tableBlocks.map(b => {
+    const status = statusMap.get(b.index) || "VALID";
+    const isBroken = status === "BROKEN";
+    return `<tr>
+      <td>${b.index}</td>
+      <td>${esc(String(b.data || "").split(":")[0].slice(0, 20))}</td>
+      <td class="hash-display ${isBroken ? 'hash-mismatch' : ''}">${esc(b.hash || "—")}</td>
+      <td class="hash-display">${esc(truncHash(b.prev_hash || b.prevHash, 24))}…</td>
+      <td><span class="pill ${isBroken ? 'broken' : 'valid'}">${status}</span></td>
+    </tr>`;
+  }).join("");
+
+  // Renumber sections based on whether break sections are visible
+  if (isValid) {
+    $("evidenceLabel").textContent = "§4 — Evidence Hash Table";
+    $("complianceLabel").textContent = "§5 — Compliance Signal";
+    $("exportLabel").textContent = "§6 — Export";
+  }
+
+  // §6 Compliance
+  const comp = [
+    {
+      title: "AUDIT INTEGRITY",
+      pass: isValid,
+      text: isValid
+        ? "All sealed events maintain cryptographic proof of integrity. The hash chain is independently verifiable by any party with access to the raw block data."
+        : "The hash chain has been broken. Stored hashes no longer match computed expectations. Audit trail integrity cannot be guaranteed from the first broken block onward."
+    },
+    {
+      title: "TRACEABILITY",
+      pass: isValid,
+      text: isValid
+        ? "Every event is traceable from genesis through the full hash lineage. Block indices are sequential with no gaps. Timestamps are monotonically increasing."
+        : "Traceability is compromised. While block sequence is intact, hash lineage diverges at the breakpoint. Events after the break cannot be proven unmodified."
+    },
+    {
+      title: "DEFENSIBILITY",
+      pass: isValid,
+      text: isValid
+        ? "This chain satisfies the evidentiary requirements for tamper-evident logging under DPDP Act 2023 §8(5) and BSA 2023 §61. Evidence is defensible in regulatory proceedings."
+        : "Chain integrity failure weakens defensibility. The tampered block and all downstream blocks would face challenge in regulatory proceedings without supplementary evidence."
+    },
+  ];
+  $("complianceGrid").innerHTML = comp.map(c => `
+    <div class="compliance-card">
+      <div class="compliance-card-head">
+        <span class="compliance-card-title">${c.title}</span>
+        <span class="compliance-card-status ${c.pass ? 'pass' : 'fail'}">${c.pass ? 'PASS' : 'FAIL'}</span>
+      </div>
+      <div class="compliance-card-text">${c.text}</div>
+      <div class="compliance-bar"><div class="compliance-bar-fill ${c.pass ? 'pass' : 'fail'}" style="width:${c.pass ? 100 : 15}%"></div></div>
+    </div>
+  `).join("");
+}
+
+// ════════════ EXPORTS ════════════
+function downloadBlob(data, name, type = "application/json") {
+  const blob = new Blob([data], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportChainJSON() {
+  downloadBlob(JSON.stringify(chainData, null, 2), `dcl-chain-${Date.now()}.json`);
+}
+
+function exportVerifyJSON() {
+  downloadBlob(JSON.stringify(verifyData, null, 2), `dcl-verify-${Date.now()}.json`);
+}
+
+function exportReport() {
+  const report = {
+    generated: new Date().toISOString(),
+    system: "DCL Clean Room V1",
+    report_type: "DCL-FR-001",
+    chain_length: chainData.length,
+    verification: verifyData,
+    chain: chainData,
+  };
+  downloadBlob(JSON.stringify(report, null, 2), `dcl-forensic-report-${Date.now()}.json`);
+}
+
+// ════════════ BOOT ════════════
+document.addEventListener("DOMContentLoaded", loadData);
+</script>
+
+</body>
+</html>

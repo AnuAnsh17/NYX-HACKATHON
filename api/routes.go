@@ -13,6 +13,9 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/healthz", withCORS(h.Healthz))
 
 	mux.Handle("/legacy/", http.StripPrefix("/legacy", http.FileServer(http.Dir("frontend"))))
+	mux.HandleFunc("/reports", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/dashboard/reports.html")
+	})
 	mux.Handle("/", http.FileServer(http.Dir("frontend/dashboard")))
 }
 
