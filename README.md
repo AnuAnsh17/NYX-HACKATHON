@@ -1,138 +1,212 @@
-# DCL Clean Room V1
+# DCL — Deep Compliance Layer
 
 > **We don't store logs. We store proof.**
 
-A tamper-evident logging engine in Go. Original work built from
-scratch by **Team NYX** for **HackX 2.0 — Code for Bharat 5.0**
-(domain: Cyber Defence & Digital Trust).
+A tamper-evident cryptographic logging engine built in Go. Every event is sealed into a SHA-256 hash chain — mutation of any block breaks the chain deterministically, and the verifier pinpoints the exact index where tampering began.
 
-## Invariant
+Built from scratch by **Team NYX** for **HackX 2.0 — Code for Bharat 5.0** (domain: Cyber Defence & Digital Trust).
+
+---
+
+## Who Is This For?
+
+DCL targets **NBFCs, fintechs, and regulated entities** that need tamper-evident audit trails under:
+
+- **DPDP Act 2023 §8(5)** — Tamper evidence for personal data processing logs
+- **BSA 2023 §61** — Audit trail integrity for financial record-keeping
+- **RBI Master Direction** — Log retention and non-repudiation for lending platforms
+
+Any compliance officer, auditor, or regulator can independently verify chain integrity with a single API call — no proprietary tools required.
+
+---
+
+## Core Invariant
 
 ```
-H(i) = SHA256( index || data || prev_hash || timestamp )
+H(i) = SHA-256( index || data || prev_hash || timestamp )
 ```
 
-Every block's hash commits to the previous block. Mutation of any
-stored field breaks the chain deterministically — the verifier
-points at the exact index where tamper began, and every downstream
-block inherits the break. There is nowhere for a silent edit to
-hide.
+Each block's hash commits to the previous block. Modify any stored field and the chain breaks — every downstream block inherits the failure. There is nowhere for a silent edit to hide.
 
-## This is NOT
+---
 
-- **Not a blockchain.** No consensus, no distributed ledger, no
-  mining. Single-node, append-only log with cryptographic linking.
-- **Not legally admissible yet.** BSA 63(4) certificates are out
-  of scope for the V1 demo slice — honest framing for judges.
+## What This Is (and Isn't)
+
+| ✅ What it is | ❌ What it is NOT |
+|---|---|
+| Single-node, append-only cryptographic log | A blockchain (no consensus, no mining) |
+| Deterministic tamper detection engine | A database replacement |
+| Real-time compliance monitoring dashboard | Legally admissible on its own (BSA 63(4) certificates are out of scope for V1) |
+| Forensic evidence generation system | A production-hardened enterprise product (yet) |
+
+---
 
 ## Architecture
 
 ```
-             ┌─────────────────────────────────────────┐
-             │  Frontend (plain HTML + vanilla JS)     │
-             │  /  — live chain viz + tamper controls  │
-             └──────────────┬──────────────────────────┘
-                            │  HTTP + SSE (text/event-stream)
-                            ▼
+         ┌───────────────────────────────────────────────┐
+         │  Frontend (HTML + Vanilla JS + Chart.js)      │
+         │  /         — Mission Control Dashboard        │
+         │  /reports  — Forensic Evidence Review          │
+         └──────────────┬────────────────────────────────┘
+                        │  HTTP + SSE (text/event-stream)
+                        ▼
   ┌─────────────────────────────────────────────────────────────┐
-  │  main.go  —  net/http mux, graceful shutdown (SIGINT)        │
-  │                                                              │
-  │  ┌──────────────┐   ┌──────────────┐   ┌──────────────────┐  │
-  │  │   api/       │   │   chain/     │   │   verifier/      │  │
-  │  │  handlers    │──▶│  Block,      │◀──│  per-block       │  │
-  │  │  SSE hub     │   │  Chain,      │   │  VALID / BROKEN  │  │
-  │  │  routes      │   │  ComputeHash │   │                  │  │
-  │  └──────────────┘   └──────────────┘   └──────────────────┘  │
-  │         ▲                   │                                │
-  │         │     Append()      │                                │
-  │         └─── callback ──────┘                                │
-  │         (api registers on startup; chain stays HTTP-free)    │
+  │  main.go  —  net/http mux, graceful shutdown (SIGINT)       │
+  │                                                             │
+  │  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
+  │  │   api/       │   │   chain/     │   │   verifier/    │  │
+  │  │  handlers    │──▶│  Block       │◀──│  per-block     │  │
+  │  │  SSE hub     │   │  Chain       │   │  VALID/BROKEN  │  │
+  │  │  routes      │   │  ComputeHash │   │                │  │
+  │  │  simulate    │   │  Reset       │   │                │  │
+  │  └──────────────┘   └──────────────┘   └────────────────┘  │
   └─────────────────────────────────────────────────────────────┘
 ```
 
-> Diagram will be replaced with a rendered PNG in Commit 10.
+---
 
-## Stack
+## Tech Stack
 
-Go 1.21+ **standard library only**. `go.mod` lists zero third-party
-modules — judges can verify. HTTP via `net/http`, SHA-256 via
-`crypto/sha256`, concurrency via `sync.RWMutex`, in-memory
-`[]Block` storage, Server-Sent Events for the live dashboard.
+**Go 1.21+ — standard library only.** `go.mod` lists zero third-party modules.
 
-## API contract
-
-| Method | Path       | Purpose                                          |
-|--------|------------|--------------------------------------------------|
-| POST   | `/event`   | Append event to chain, returns new Block         |
-| GET    | `/chain`   | Full chain as `[]Block`                          |
-| GET    | `/verify`  | Per-block VALID / BROKEN status + overall `valid`|
-| POST   | `/tamper`  | Overwrite block[i].Data without updating hash    |
-| GET    | `/events`  | SSE stream of new blocks                         |
-| GET    | `/healthz` | `{"status":"ok","chain_length":N}`               |
-
-## Build
-
-```bash
-go build ./...
-go vet ./...
-go test -race ./...
-```
-
-## Run
-
-```bash
-go run .
-```
-
-Server listens on `:8080`. Dashboard will be served at
-`http://localhost:8080` once the frontend lands (Commit 8).
-
-## Demo script (placeholder — expanded in Commit 10)
-
-1. Start the server.
-2. Ingest NBFC-style events via the Python simulator.
-3. Watch the dashboard chain grow live via SSE.
-4. Click **Tamper** on block 3. Hash is not recomputed.
-5. Call `GET /verify`. Blocks 0–2 show `VALID`, blocks 3..N show
-   `BROKEN`. Dashboard cascades red in 150 ms steps.
-6. Hit `POST /event` again. New block's `prev_hash` references the
-   broken hash — the break propagates forever.
-
-## Frontend (Next.js SOC Dashboard)
-
-```bash
-cd frontend/new-ui
-npm install
-npm run dev
-```
-
-Dashboard connects to Go backend at `localhost:8080`.
-Start the backend first, then the frontend, then the Python simulator.
-
-## Structure
-
-```
-nyx-hackathon/
-├── main.go         HTTP server boot, graceful shutdown
-├── chain/          Block struct, hash formula, append-only engine
-├── api/            HTTP handlers, routes, SSE broadcaster
-├── verifier/       Chain integrity check, per-block status
-└── frontend/       Plain HTML + vanilla JS dashboard
-```
-
-## Commit narrative (10 commits, ~2h cadence)
-
-1. init: clean room DCL project setup with Go module
-2. feat: implement Block struct and SHA-256 hash formula
-3. feat: append-only chain engine with mutex and genesis
-4. feat: HTTP server with POST /event and GET /chain
-5. feat: chain verifier and GET /verify endpoint
-6. feat: tamper simulation endpoint and SSE event stream
-7. test: race-clean test suite — 5 invariant cases
-8. feat: frontend chain visualiser with live SSE
-9. feat: tamper cascade animation and integrity status panel
-10. feat: NBFC simulator integration, README, demo polish
+| Layer | Technology |
+|---|---|
+| HTTP server | `net/http` |
+| Cryptography | `crypto/sha256` |
+| Concurrency | `sync.RWMutex`, `sync/atomic` |
+| Storage | In-memory `[]Block` (append-only) |
+| Real-time | Server-Sent Events |
+| Frontend | Vanilla HTML/CSS/JS, Chart.js |
 
 ---
 
-Team NYX · HackX 2.0 · 2026
+## API Contract
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/event` | Seal an event into the chain, returns new Block |
+| `GET` | `/chain` | Full chain as `[]Block` |
+| `GET` | `/verify` | Per-block VALID/BROKEN status + overall `valid` flag |
+| `POST` | `/tamper` | Overwrite `block[i].Data` without recomputing hash |
+| `POST` | `/reset` | Reset chain to fresh genesis block |
+| `POST` | `/simulate?mode=demo` | Run 20+genesis smooth demo events (400–600ms) |
+| `POST` | `/simulate?mode=stress` | Fire 1500 events for throughput validation |
+| `GET` | `/events` | SSE stream — new blocks broadcast in real-time |
+| `GET` | `/healthz` | `{"status":"ok","chain_length":N}` |
+| `GET` | `/reports` | Forensic Evidence Review page |
+
+---
+
+## Features
+
+### Mission Control Dashboard (`/`)
+
+- **Hero ring visualization** — cryptographic seal count with animated dot ring
+- **Real-time audit stream** — live SSE feed with tokenized log entries
+- **Evidence table** — paginated, searchable, with hash truncation + tooltips, icon action buttons, status pills
+- **Integrity monitor** — timeline of recent blocks with break detection
+- **Charts** — event rate (line), block status (donut), hash entropy (heatmap)
+- **Compliance sidebar** — DPDP, BSA, RBI, and internal integrity signals
+- **System telemetry** — verify latency, memory usage, network I/O
+- **Skeleton loading** — premium loading state with cross-fade hydration
+
+### Simulation System
+
+- **Demo Mode** — 20 events at 400–600ms intervals with realistic NBFC event names (KYC, LOAN, AUDIT, COMPLIANCE, etc.). Smooth animations, perfect for live presentation.
+- **Stress Mode** — 1500 events with SSE batching (150ms drain interval), `requestAnimationFrame` render scheduling, chart debouncing (500ms), and CSS animation suppression. Dashboard stays smooth under load.
+
+### Forensic Evidence Review (`/reports`)
+
+- **Executive summary** — total blocks, valid vs broken, first break index, cascade impact
+- **Chain topology** — visual linear chain with break highlighting and dashed links
+- **Breakpoint analysis** — mismatch explanation with cascade implication
+- **Affected segments** — tampered + cascade block listing with badges
+- **Evidence hash table** — stored vs expected hash with status pills
+- **Compliance signal** — audit integrity, traceability, defensibility (PASS/FAIL)
+- **Export** — download chain JSON, verification JSON, or full forensic report
+
+### Performance Optimizations
+
+- SSE events always queued and batch-drained (100ms normal, 150ms stress)
+- Render scheduling via `requestAnimationFrame` with deduplication
+- Chart updates debounced to max 2×/sec
+- Audit log capped at 100 lines, timeline at 20 nodes (8 in stress)
+- All heavy CSS animations suppressed during stress mode
+- Backend yields every 100 events to prevent CPU starvation
+
+---
+
+## Quick Start
+
+```bash
+# Build and verify
+go build ./...
+go vet ./...
+
+# Run
+go run .
+```
+
+Server starts on `:8080`.
+
+| Page | URL |
+|---|---|
+| Mission Control | [http://localhost:8080](http://localhost:8080) |
+| Forensic Report | [http://localhost:8080/reports](http://localhost:8080/reports) |
+
+---
+
+## Demo Flow
+
+1. **Start the server** → `go run .`
+2. **Open the dashboard** → `http://localhost:8080`
+3. **Click RUN DEMO** → watch 20 events seal smoothly with ring animation
+4. **Click TAMPER LAST** → chain breaks, compliance cascades red, audit stream logs breach
+5. **Open /reports** → forensic report shows breakpoint analysis and affected segments
+6. **Click RESET CHAIN** → clean slate for next demo cycle
+7. **Click RUN STRESS** → 1500 events fire, dashboard stays smooth with batch rendering
+8. **Export** → download chain JSON or full forensic report from /reports
+
+---
+
+## Project Structure
+
+```
+nyx-hackathon/
+├── main.go                    HTTP server, graceful shutdown
+├── chain/
+│   ├── chain.go               Append-only engine, mutex-safe, reset
+│   └── hash.go                SHA-256 hash formula
+├── api/
+│   ├── handlers.go            HTTP handlers + simulation (demo/stress)
+│   ├── routes.go              Route registration + CORS
+│   └── broadcaster.go         SSE pub/sub hub
+├── verifier/
+│   └── verify.go              Per-block integrity check
+├── frontend/dashboard/
+│   ├── index.html             Mission Control (dashboard + JS)
+│   ├── style.css              Full design system
+│   └── reports.html           Forensic Evidence Review page
+└── simulator/
+    └── simulator.py           Python event generator (legacy)
+```
+
+---
+
+## Contributors
+
+**TEAM NYX**
+
+| Name | Role |
+|---|---|
+| **Anurag Yadav** | Full-Stack Development, System Architecture |
+| **Akash Jaiswal** | Backend Engineering, Cryptographic Design |
+| **Hrishabh Soni** | Frontend Development, UI/UX Design |
+
+---
+
+<p align="center">
+  <strong>Team NYX · HackX 2.0 — Code for Bharat 5.0 · 2026</strong><br>
+  <em>Cyber Defence & Digital Trust</em>
+</p>
